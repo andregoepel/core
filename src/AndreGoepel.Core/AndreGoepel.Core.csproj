@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>AndreGoepel.Core</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Zero-dependency shared primitives for the AndreGoepel .NET ecosystem, starting with Result&lt;T&gt;.</Description>
+    <PackageTags>result;primitives;abstractions</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AndreGoepel.Core.Tests" />
+  </ItemGroup>
+</Project>
