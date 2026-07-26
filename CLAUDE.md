@@ -1,6 +1,7 @@
 # AndreGoepel.Core
 
-Zero-dependency shared primitives for the AndreGoepel .NET ecosystem. Sits
+Shared primitives for the AndreGoepel .NET ecosystem, with a hard
+dependency policy: BCL abstractions only (see Intake Bar). Sits
 below every other package (app-foundation, marten-*, and the apps built on
 them) — nothing here may ever take a dependency back into that ecosystem.
 
@@ -12,8 +13,14 @@ them) — nothing here may ever take a dependency back into that ecosystem.
 This is the single most expensive place in the whole stack to get wrong: a
 breaking change here forces every other repo to move in lockstep. Before
 adding a type or helper:
-- **Zero dependencies, always.** Not even `Microsoft.Extensions.*`. If it
-  needs a dependency, it belongs in a higher-level package instead.
+- **Dependency policy: BCL abstractions only.** Allowed are exclusively
+  `Microsoft.Extensions.*.Abstractions` packages (e.g.
+  `Configuration.Abstractions`, `Logging.Abstractions`,
+  `DependencyInjection.Abstractions`) — they ship on the runtime's cadence
+  and are already present transitively in every consumer. Nothing else:
+  no third-party packages, no non-Abstractions `Microsoft.Extensions.*`
+  packages, no exceptions. If it needs more, it belongs in a higher-level
+  package instead.
 - **Genuinely cross-cutting.** Used (or clearly about to be used) by more
   than one repo — not "might be handy someday." A single-repo need stays in
   that repo.
