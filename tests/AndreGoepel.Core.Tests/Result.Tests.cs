@@ -51,4 +51,42 @@ public sealed class ResultTests
         Assert.Equal(default, result.Value);
         Assert.Equal("invalid input", result.Error);
     }
+
+    // No null-forgiving operators (!) below and no explicit null checks on Error —
+    // this only compiles under TreatWarningsAsErrors (CS8602) if the
+    // [MemberNotNullWhen] attributes on IsSuccess/IsFailure are correct.
+
+    [Fact]
+    public void IsFailure_True_NarrowsErrorToNonNull()
+    {
+        // Arrange
+        var result = Result.Fail("boom");
+
+        // Act
+        var length = result.IsFailure ? result.Error.Length : 0;
+
+        // Assert
+        Assert.Equal(4, length);
+    }
+
+    [Fact]
+    public void IsSuccess_False_NarrowsErrorToNonNullInElseBranch()
+    {
+        // Arrange
+        var result = Result.Fail("boom");
+
+        // Act
+        string message;
+        if (result.IsSuccess)
+        {
+            message = "ok";
+        }
+        else
+        {
+            message = result.Error;
+        }
+
+        // Assert
+        Assert.Equal("boom", message);
+    }
 }

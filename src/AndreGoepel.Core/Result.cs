@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace AndreGoepel.Core;
 
 /// <summary>
@@ -6,10 +8,12 @@ namespace AndreGoepel.Core;
 /// </summary>
 public record Result
 {
+    [MemberNotNullWhen(false, nameof(Error))]
     public bool IsSuccess { get; init; }
 
     public string? Error { get; init; }
 
+    [MemberNotNullWhen(true, nameof(Error))]
     public bool IsFailure => !IsSuccess;
 
     public static Result Ok() => new() { IsSuccess = true };
