@@ -7,7 +7,6 @@
 
   <PropertyGroup>
     <PackageId>AndreGoepel.Core</PackageId>
-    <Version>1.0.0</Version>
     <Description>Zero-dependency shared primitives for the AndreGoepel .NET ecosystem, starting with Result&lt;T&gt;.</Description>
     <PackageTags>result;primitives;abstractions</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
