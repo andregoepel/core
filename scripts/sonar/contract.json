@@ -1,0 +1,10 @@
+{
+  "sdk": "10.0.402",
+  "serverVersion": "26.10.0.133078",
+  "centralServerId": "AA2DD71C-AaFDycIuQLOXJXX6YWNZ",
+  "gate": "Core Library 1.0.0",
+  "solution": "AndreGoepel.Core.slnx",
+  "tests": { "AndreGoepel.Core.Tests": 6 },
+  "coverageAnchors": ["src/AndreGoepel.Core/Result.cs"],
+  "sourceExclusions": ["**/bin/**", "**/obj/**", "**/.sonarqube/**", "artifacts/**"]
+}

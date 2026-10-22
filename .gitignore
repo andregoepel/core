@@ -448,3 +448,7 @@ FodyWeavers.xsd
 # control, but allow the audit prompt itself to be committed.
 /audit/*
 !/audit/audit-prompt.md
+
+# Isolated Sonar analysis state
+.sonarqube/
+.sonar-analysis.lock
