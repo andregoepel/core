@@ -37,6 +37,12 @@ private `core-local` project, dedicated `Core Library 1.0.0` gate and matching
 frozen profiles, with a project-analysis token and separate browse-only verifier.
 The central service/project must not be used for branch scans.
 
+The repository's `global.json` selects SDK 10.0.402 with roll-forward disabled
+and preserves Microsoft.Testing.Platform. This pin applies to commands run from
+the Core checkout, including the scanner's build/test commands. Install that
+exact SDK before running analysis; a newer SDK cannot replace it. Keep this pin,
+the analysis contract and the shared runner's SDK aligned when reviewing upgrades.
+
 Supply short-lived local credentials through `WORKFLOWS_SONAR_TOKEN` and
 `WORKFLOWS_SONAR_VERIFY_TOKEN` using protected local credential storage; do not
 paste tokens into shell history. Then run:
