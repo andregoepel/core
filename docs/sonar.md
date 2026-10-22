@@ -4,7 +4,7 @@ Tracking: [core #24](https://github.com/andregoepel/core/issues/24),
 [shared tooling #27](https://github.com/andregoepel/workflows/issues/27),
 [epic #238](https://github.com/andregoepel/app-foundation/issues/238).
 
-This PR adds opt-in analysis using the shared C# runner in `workflows`.
+Core uses opt-in analysis through the shared C# runner in `workflows`.
 The library and its dependencies, existing CI and tag publisher are unchanged.
 The new caller stays inactive while `SONAR_MAIN_ENABLED` is unset. There is no
 package upload, release tag, publisher migration or deployment in this wave.
@@ -73,26 +73,40 @@ dedicated Sonar target. The existing CI has no reusable workflow reference;
 unexpected references are rejected. The tag-only publishing job is intentionally
 not part of main readiness.
 
-The policy starts with `profiles: []` and `baselineAnalysisId: null` because
-central provisioning and baseline selection have not occurred. These values
-fail closed. They are not app-foundation's policy or fabricated acceptance evidence.
-Complete this checklist after review, in order:
+The policy records the actual dedicated profiles provisioned on October 22, 2026.
+The snapshot contains 27 languages, including 121 C# rules, with each profile's
+own rule revision timestamp. Each profile is an independent copy with no parent;
+the accepted CSharpier-compatible rule choices are retained. The six gate
+conditions match the reviewed contract, the small-change exemption is disabled,
+and there are no authored coverage exclusions. Existing profiles, defaults and
+app-foundation's baseline were verified unchanged.
 
-1. Merge the shared tooling PR first. Preserve its reviewed immutable commit pin
+The private `core` project has separate scan-only and browse-only identities.
+The scanner uses a project-analysis token; the verifier has no scan or admin
+permission. Both were denied administration and access to app-foundation.
+Their credentials are stored only in protected operator storage and Core's
+`sonar-main` environment. That environment permits only the `main` branch,
+requires André's approval, allows self-approval and disables administrator bypass.
+Tokens expire after 90 days; renew only Core's tokens and environment secrets
+before expiry, then repeat the permitted/denied access checks.
+
+`SONAR_MAIN_ENABLED` remains unset. `baselineAnalysisId` remains null because
+no central Core analysis has been performed or accepted as a baseline. The profile
+snapshot must be reviewed and merged before activation. A skipped job or a
+successful local scan is not central readiness. Continue this checklist in order:
+
+1. **Complete:** both onboarding PRs are merged. Preserve the reviewed immutable commit pin
    in the new caller, `tool-revision` input and policy; update all three together
-   if review changes the shared implementation. Merge this onboarding PR.
-2. Provision the **separate private** `core` project on staging. Copy/freeze the
-   reviewed rule set into `Core Library 1.0.0` profiles and a dedicated gate.
-   Capture actual assigned languages, rule counts and rule revision timestamps
-   into this policy through review. Preserve all other projects and defaults.
-3. Keep the six reviewed gate conditions: zero overall/new issues, at least 80%
+   if a reviewed upgrade changes the shared implementation.
+2. **Provisioned; policy review pending:** the separate private `core` project,
+   `Core Library 1.0.0` profiles and dedicated gate are configured. Review and merge
+   this actual profile snapshot before allowing a central run.
+3. **Configured:** keep the six reviewed gate conditions: zero overall/new issues, at least 80%
    overall/new coverage, at most 3% new duplication and all new hotspots reviewed.
    Disable the small-change exemption; retain no authored coverage exclusions.
-4. Create a main-only protected `sonar-main` GitHub environment with André as
-   reviewer and self-approval allowed for this solo-maintainer repository.
-   Store a project-scoped `SONAR_SCAN_TOKEN` and a separate browse-only
-   `SONAR_VERIFY_TOKEN` there. Do not grant publish/OIDC permissions or copy
-   app-foundation's credentials. Verify each identity's scope.
+4. **Configured and verified:** main-only protected `sonar-main` environment,
+   reviewer/self-approval settings, project-scoped `SONAR_SCAN_TOKEN` and separate
+   browse-only `SONAR_VERIFY_TOKEN`. No publish/OIDC permissions are granted.
 5. Only after those prerequisites are reviewed, set `SONAR_MAIN_ENABLED=true`
    and request one rerun of existing CI for the current main SHA. The first
    complete analysis intentionally fails readiness while the baseline is null.
@@ -128,6 +142,7 @@ The shared runner passed 259 offline tests on Windows and Linux, including
 missing/stale/wrong-revision CI, reruns, skipped jobs, changed gates/profiles/
 baselines and invalid coverage. PR check results are recorded in the PR/issue.
 
-Actual central provisioning, a reviewed central baseline, hosted readiness,
-two exact-main run sets and measured additional VPS capacity remain pending.
-This PR is reviewable preparation, not a completed or accepted rollout.
+Central provisioning and scoped API access are verified; the service reports green
+health. The profile snapshot requires review. A reviewed central baseline, hosted
+readiness, two exact-main run sets and measured additional VPS capacity under
+analysis load remain pending. This is not a completed or accepted rollout.

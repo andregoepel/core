@@ -6,7 +6,7 @@
   "sonarUrl": "https://sonar.andregoepel.dev/",
   "project": "core",
   "serverId": "AA2DD71C-AaFDycIuQLOXJXX6YWNZ",
-  "toolRevision": "64b791bc90feadfd21a8cc3cf73b14456172334b",
+  "toolRevision": "f6c806d1060e390a24c1451e7486578c9bdbab23",
   "baselineAnalysisId": null,
   "maximumRunAgeMinutes": 120,
   "evidenceLifetimeMinutes": 60,
@@ -42,7 +42,170 @@
       "error": "100"
     }
   ],
-  "profiles": [],
+  "profiles": [
+    {
+      "language": "azureresourcemanager",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 27,
+      "rulesUpdatedAt": "2026-10-22T22:34:14+08:00"
+    },
+    {
+      "language": "cloudformation",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 22,
+      "rulesUpdatedAt": "2026-10-22T22:34:14+08:00"
+    },
+    {
+      "language": "cs",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 121,
+      "rulesUpdatedAt": "2026-10-22T22:34:15+08:00"
+    },
+    {
+      "language": "css",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 25,
+      "rulesUpdatedAt": "2026-10-22T22:34:15+08:00"
+    },
+    {
+      "language": "docker",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 18,
+      "rulesUpdatedAt": "2026-10-22T22:34:16+08:00"
+    },
+    {
+      "language": "flex",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 11,
+      "rulesUpdatedAt": "2026-10-22T22:34:17+08:00"
+    },
+    {
+      "language": "go",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 6,
+      "rulesUpdatedAt": "2026-10-22T22:34:17+08:00"
+    },
+    {
+      "language": "ipynb",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 230,
+      "rulesUpdatedAt": "2026-10-22T22:34:18+08:00"
+    },
+    {
+      "language": "java",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 274,
+      "rulesUpdatedAt": "2026-10-22T22:34:19+08:00"
+    },
+    {
+      "language": "js",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 199,
+      "rulesUpdatedAt": "2026-10-22T22:34:20+08:00"
+    },
+    {
+      "language": "json",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 0,
+      "rulesUpdatedAt": "2026-10-22T22:34:21+08:00"
+    },
+    {
+      "language": "jsp",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 0,
+      "rulesUpdatedAt": "2026-10-22T22:34:21+08:00"
+    },
+    {
+      "language": "kotlin",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 54,
+      "rulesUpdatedAt": "2026-10-22T22:34:22+08:00"
+    },
+    {
+      "language": "kubernetes",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 18,
+      "rulesUpdatedAt": "2026-10-22T22:34:22+08:00"
+    },
+    {
+      "language": "php",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 78,
+      "rulesUpdatedAt": "2026-10-22T22:34:23+08:00"
+    },
+    {
+      "language": "py",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 232,
+      "rulesUpdatedAt": "2026-10-22T22:34:23+08:00"
+    },
+    {
+      "language": "ruby",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 9,
+      "rulesUpdatedAt": "2026-10-22T22:34:24+08:00"
+    },
+    {
+      "language": "rust",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 58,
+      "rulesUpdatedAt": "2026-10-22T22:34:25+08:00"
+    },
+    {
+      "language": "scala",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 8,
+      "rulesUpdatedAt": "2026-10-22T22:34:25+08:00"
+    },
+    {
+      "language": "secrets",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 30,
+      "rulesUpdatedAt": "2026-10-22T22:34:26+08:00"
+    },
+    {
+      "language": "terraform",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 49,
+      "rulesUpdatedAt": "2026-10-22T22:34:26+08:00"
+    },
+    {
+      "language": "text",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 3,
+      "rulesUpdatedAt": "2026-10-22T22:34:27+08:00"
+    },
+    {
+      "language": "ts",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 198,
+      "rulesUpdatedAt": "2026-10-22T22:34:27+08:00"
+    },
+    {
+      "language": "vbnet",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 55,
+      "rulesUpdatedAt": "2026-10-22T22:34:28+08:00"
+    },
+    {
+      "language": "web",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 34,
+      "rulesUpdatedAt": "2026-10-22T22:34:28+08:00"
+    },
+    {
+      "language": "xml",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 20,
+      "rulesUpdatedAt": "2026-10-22T22:34:29+08:00"
+    },
+    {
+      "language": "yaml",
+      "name": "Core Library 1.0.0",
+      "activeRuleCount": 0,
+      "rulesUpdatedAt": "2026-10-22T22:34:29+08:00"
+    }
+  ],
   "workflows": [
     {
       "id": 320576462,

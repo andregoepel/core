@@ -17,6 +17,6 @@ jobs:
       github.repository == 'andregoepel/core' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_repository.full_name == github.repository
-    uses: andregoepel/workflows/.github/workflows/sonar-library.yml@64b791bc90feadfd21a8cc3cf73b14456172334b
+    uses: andregoepel/workflows/.github/workflows/sonar-library.yml@f6c806d1060e390a24c1451e7486578c9bdbab23
     with:
-      tool-revision: 64b791bc90feadfd21a8cc3cf73b14456172334b
+      tool-revision: f6c806d1060e390a24c1451e7486578c9bdbab23
