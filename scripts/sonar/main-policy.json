@@ -6,7 +6,7 @@
   "sonarUrl": "https://sonar.andregoepel.dev/",
   "project": "core",
   "serverId": "AA2DD71C-AaFDycIuQLOXJXX6YWNZ",
-  "toolRevision": "64b791bc90feadfd21a8cc3cf73b14456172334b",
+  "toolRevision": "f6c806d1060e390a24c1451e7486578c9bdbab23",
   "baselineAnalysisId": null,
   "maximumRunAgeMinutes": 120,
   "evidenceLifetimeMinutes": 60,
