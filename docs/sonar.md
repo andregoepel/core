@@ -6,8 +6,9 @@ Tracking: [core #24](https://github.com/andregoepel/core/issues/24),
 
 Core uses opt-in analysis through the shared C# runner in `workflows`.
 The library and its dependencies, existing CI and tag publisher are unchanged.
-The new caller stays inactive while `SONAR_MAIN_ENABLED` is unset. There is no
-package upload, release tag, publisher migration or deployment in this wave.
+Central main analysis is enabled with `SONAR_MAIN_ENABLED=true`. The initial
+baseline was accepted and selected on October 23, 2026. There is no package
+upload, release tag, publisher migration or deployment in this wave.
 The existing tag publisher is **not Sonar-protected** by this addition.
 
 ## Reviewed scope
@@ -65,7 +66,7 @@ a nonzero exit code. Results are under `artifacts/sonar/<run-name>/publish/summa
 private diagnostics remain under the sibling `private/` directory. Inspect an
 existing lock or scanner directory before removing it manually.
 
-## Standby policy and controlled activation
+## Reviewed main policy and baseline
 
 `main-policy.json` records the existing CI workflow ID, content fingerprint,
 required build/test/audit steps, evidence age limits, shared runner revision and
@@ -90,37 +91,66 @@ requires André's approval, allows self-approval and disables administrator bypa
 Tokens expire after 90 days; renew only Core's tokens and environment secrets
 before expiry, then repeat the permitted/denied access checks.
 
-`SONAR_MAIN_ENABLED` remains unset. `baselineAnalysisId` remains null because
-no central Core analysis has been performed or accepted as a baseline. The profile
-snapshot must be reviewed and merged before activation. A skipped job or a
-successful local scan is not central readiness. Continue this checklist in order:
+The onboarding, profile snapshot and environment-secret forwarding changes are
+merged. The caller uses `secrets: inherit` so the protected environment supplies
+the two Sonar credentials to the immutable shared workflow. This also makes
+caller-accessible repository secrets available to that workflow; review this
+scope when adding secrets. The pinned analysis job references only the Sonar
+credentials and has no publish/OIDC permissions.
 
-1. **Complete:** both onboarding PRs are merged. Preserve the reviewed immutable commit pin
-   in the new caller, `tool-revision` input and policy; update all three together
-   if a reviewed upgrade changes the shared implementation.
-2. **Provisioned; policy review pending:** the separate private `core` project,
-   `Core Library 1.0.0` profiles and dedicated gate are configured. Review and merge
-   this actual profile snapshot before allowing a central run.
-3. **Configured:** keep the six reviewed gate conditions: zero overall/new issues, at least 80%
-   overall/new coverage, at most 3% new duplication and all new hotspots reviewed.
-   Disable the small-change exemption; retain no authored coverage exclusions.
-4. **Configured and verified:** main-only protected `sonar-main` environment,
-   reviewer/self-approval settings, project-scoped `SONAR_SCAN_TOKEN` and separate
-   browse-only `SONAR_VERIFY_TOKEN`. No publish/OIDC permissions are granted.
-5. Only after those prerequisites are reviewed, set `SONAR_MAIN_ENABLED=true`
-   and request one rerun of existing CI for the current main SHA. The first
-   complete analysis intentionally fails readiness while the baseline is null.
-   Review its inventory, coverage, findings and exact revision; select that
-   actual analysis as `SPECIFIC_ANALYSIS` and record its ID through review.
-6. Collect two fresh exact-main CI/Sonar successes and service-capacity evidence,
-   alongside the isolated local failed-gate/recovery and offline evidence tests.
-   Do not run duplicate central scans or claim acceptance from a skipped job.
-   Keep #24 and the wave open until the remaining evidence is accepted.
+André explicitly accepted the first central analysis as the baseline. Core main's
+server-side new-code definition is `SPECIFIC_ANALYSIS`, with the same analysis ID
+recorded in `scripts/sonar/main-policy.json`:
+
+| Evidence | Accepted baseline |
+| --- | --- |
+| Analysis ID | `e3555256-765a-4247-9489-9a22f02ff42b` |
+| Source revision | `6f053a880b91f83f6fdfc1d0ceef1f31abc4fa8d` |
+| Analysis time | 2026-10-23 03:28:30 UTC |
+| Main CI | [39894525868, attempt 1](https://github.com/andregoepel/core/actions/runs/39894525868/attempts/1), passed |
+| Central analysis | [39894570021, attempt 1](https://github.com/andregoepel/core/actions/runs/39894570021/attempts/1) |
+| Processing task | `a4495684-b5a5-4d54-8ef2-a77143f1c2fb`, succeeded without warnings |
+| Inventory and tests | Both projects analyzed; 6 discovered tests, all passed |
+| Coverage and findings | 100% coverage; 5 lines to cover, none uncovered; zero findings or hotspots |
+| Quality Gate | `OK`, no ignored conditions |
+
+The first analysis completed successfully but its workflow deliberately failed
+with `Full analysis retained; a reviewed SPECIFIC_ANALYSIS baseline is still required.`
+The policy had no baseline at execution time, so no readiness receipt was issued.
+Selecting the baseline does not change that historical workflow result. The first
+scan evaluated overall coverage and findings; it did not verify new-code conditions
+against a baseline. A subsequent analysis must perform that verification.
+
+## Complete main readiness after the policy merge
+
+1. Verify successful main CI for the exact merged revision and attempt. Reuse its
+   existing Sonar trigger; do not start another analysis while one is queued or
+   running. Approve its `sonar-main` environment request while CI evidence is fresh.
+2. Verify the submitted task, analysis revision/build string, complete tests and
+   coverage, unchanged gate/profiles, and the selected baseline. A later analysis
+   must differ from the baseline ID; the baseline cannot certify itself.
+3. Require a successful readiness workflow and receipt. Check new-code conditions,
+   including explicit zero-denominator evidence when the revision has no new code.
+   A skipped job, successful local scan or green gate alone is not main readiness.
+4. Collect a second fresh exact-main CI/Sonar set, requesting at most one rerun of
+   existing CI if no suitable run exists. Record run IDs and attempts before
+   requesting a rerun, and keep central scans sequential while measuring capacity.
+5. Retain service-capacity evidence alongside the isolated local failed-gate/recovery
+   and offline evidence tests. Keep #24 and the wave open until the remaining
+   evidence is accepted.
+
+Keep the six reviewed conditions: zero overall/new issues, at least 80% overall/new
+coverage, at most 3% new duplication and all new hotspots reviewed. Preserve the
+disabled small-change exemption and absence of authored coverage exclusions.
+Any baseline replacement needs explicit review and a matching policy change;
+do not move the baseline to hide a gate failure. Preserve agreement between the
+caller pin, `tool-revision` input and policy when reviewing shared-tool upgrades.
 
 The new workflow runs only after main-push CI. It independently rejects failed,
 stale, missing, superseded or wrong-revision evidence and altered workflow/tool
-pins. Its artifact is `library-analysis-readiness`, with `analysisReady: true`
-and **`releaseEligible: false`**. It cannot authorize the existing NuGet publisher.
+pins. Its `readiness.json` receipt has kind `library-analysis-readiness`, with
+`analysisReady: true` and **`releaseEligible: false`**. The artifact name is
+`sonar-library-readiness-<sha>-<run-id>-<attempt>`. It cannot authorize the existing NuGet publisher.
 Private scanner files and credentials are never uploaded. Main changes require
 a new exact-commit CI/Sonar set. Native branch/PR analysis is not claimed.
 
@@ -131,7 +161,7 @@ new scoped credentials and retain diagnostic evidence. Revert the additive
 Sonar caller through review if needed. Existing CI/publishing and other projects'
 baselines remain untouched. No release tag or publishing test is needed for rollback.
 
-## Validation before review
+## Validation and remaining acceptance
 
 Full local Windows analysis and Linux recovery analysis both passed: both
 projects, six passing tests, 100% coverage, zero issues and zero hotspots.
@@ -142,7 +172,13 @@ The shared runner passed 259 offline tests on Windows and Linux, including
 missing/stale/wrong-revision CI, reruns, skipped jobs, changed gates/profiles/
 baselines and invalid coverage. PR check results are recorded in the PR/issue.
 
-Central provisioning and scoped API access are verified; the service reports green
-health. The profile snapshot requires review. A reviewed central baseline, hosted
-readiness, two exact-main run sets and measured additional VPS capacity under
-analysis load remain pending. This is not a completed or accepted rollout.
+Central provisioning, scoped API access and the first complete hosted analysis are
+verified. The accepted baseline is selected on the server and recorded in this
+policy. Service health, profiles and configuration remained unchanged during the
+first scan. Resource samples showed no restart, out-of-memory event or memory
+pressure, but the short processing task fell between samples; its peak usage and
+concurrent workload capacity were not established.
+
+After this policy is merged, two successful exact-main CI/Sonar readiness sets and
+further capacity evidence remain required. Baseline acceptance does not complete
+or accept the rollout, and does not activate or protect the existing publisher.
