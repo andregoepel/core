@@ -1,0 +1,6 @@
+{
+  "repository": "andregoepel/core",
+  "readinessWorkflowId": 392994102,
+  "packages": ["AndreGoepel.Core"],
+  "verifierRevision": ""
+}

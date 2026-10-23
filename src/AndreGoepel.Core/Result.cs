@@ -18,11 +18,21 @@ public record Result
 
     public static Result Ok() => new() { IsSuccess = true };
 
-    public static Result Fail(string error) => new() { IsSuccess = false, Error = error };
+    public static Result Fail(string error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+
+        return new() { IsSuccess = false, Error = error };
+    }
 
     public static Result<T> Ok<T>(T value) => new() { IsSuccess = true, Value = value };
 
-    public static Result<T> Fail<T>(string error) => new() { IsSuccess = false, Error = error };
+    public static Result<T> Fail<T>(string error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+
+        return new() { IsSuccess = false, Error = error };
+    }
 }
 
 /// <summary>

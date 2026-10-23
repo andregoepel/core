@@ -5,11 +5,15 @@ Tracking: [core #24](https://github.com/andregoepel/core/issues/24),
 [epic #238](https://github.com/andregoepel/app-foundation/issues/238).
 
 Core uses opt-in analysis through the shared C# runner in `workflows`.
-The library and its dependencies, existing CI and tag publisher are unchanged.
+The first wave left the library, its dependencies, existing CI and tag publisher unchanged.
 Central main analysis is enabled with `SONAR_MAIN_ENABLED=true`. The initial
 baseline was accepted and selected on October 23, 2026. There is no package
 upload, release tag, publisher migration or deployment in this wave.
 The existing tag publisher is **not Sonar-protected** by this addition.
+
+Follow-up preparation for #29/#30 is documented in
+[the publication migration plan](nuget-quality-gate.md) and
+[the new-code evidence report](sonar-new-code.md).
 
 ## Reviewed scope
 
@@ -18,7 +22,7 @@ The existing tag publisher is **not Sonar-protected** by this addition.
 | Solution | `AndreGoepel.Core.slnx` |
 | Production project | `src/AndreGoepel.Core/AndreGoepel.Core.csproj` |
 | Test project | `tests/AndreGoepel.Core.Tests/AndreGoepel.Core.Tests.csproj` |
-| Current tests | Six; discovery must find at least six and all discovered tests must pass |
+| Current tests | Eight; discovery must find at least eight and all discovered tests must pass |
 | Executed coverage anchor | `src/AndreGoepel.Core/Result.cs` |
 | SDK / scanner / coverage | 10.0.402 / 12.0.0 / 18.12.0 |
 | Sonar Community Build | 26.10.0.133078 |

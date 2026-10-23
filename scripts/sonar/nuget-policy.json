@@ -1,0 +1,8 @@
+{
+  "workflowId": 0,
+  "workflowSha256": "",
+  "maximumAgeMinutes": 120,
+  "jobs": {
+    "prepare": ["Verify tag push", "Prepare NuGet batch", "Publish package batch", "Publish origin"]
+  }
+}

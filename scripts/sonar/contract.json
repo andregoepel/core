@@ -4,7 +4,7 @@
   "centralServerId": "AA2DD71C-AaFDycIuQLOXJXX6YWNZ",
   "gate": "Core Library 1.0.0",
   "solution": "AndreGoepel.Core.slnx",
-  "tests": { "AndreGoepel.Core.Tests": 6 },
+  "tests": { "AndreGoepel.Core.Tests": 8 },
   "coverageAnchors": ["src/AndreGoepel.Core/Result.cs"],
   "sourceExclusions": ["**/bin/**", "**/obj/**", "**/.sonarqube/**", "artifacts/**"]
 }
