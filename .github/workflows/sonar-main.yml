@@ -18,5 +18,6 @@ jobs:
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     uses: andregoepel/workflows/.github/workflows/sonar-library.yml@f6c806d1060e390a24c1451e7486578c9bdbab23
+    secrets: inherit
     with:
       tool-revision: f6c806d1060e390a24c1451e7486578c9bdbab23
