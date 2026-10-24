@@ -1,0 +1,114 @@
+name: NuGet no-upload rehearsal
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: core-nuget-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  rehearse:
+    if: github.repository == 'andregoepel/core' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: sonar-main
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Resolve current-main evidence and verifier
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_WORKFLOW_SHA" = "$GITHUB_SHA"
+          test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/nuget-rehearsal.yml@refs/heads/main"
+          test "$(gh api repos/andregoepel/core/git/ref/heads/main --jq '.object.sha')" = "$GITHUB_SHA"
+          revision=$(jq -er '.verifierRevision' scripts/sonar/publication-target.json)
+          [[ "$revision" =~ ^[a-f0-9]{40}$ && "$revision" != 0000000000000000000000000000000000000000 ]]
+          readiness=$(gh api --method GET repos/andregoepel/core/actions/workflows/392994102/runs \
+            -f branch=main -f event=workflow_run -f head_sha="$GITHUB_SHA" -f per_page=100 \
+            --jq '.workflow_runs | if length > 0 then max_by(.id).id else error("No current-main readiness run") end')
+          ci=$(gh api --method GET repos/andregoepel/core/actions/workflows/320576462/runs \
+            -f branch=main -f event=push -f head_sha="$GITHUB_SHA" -f per_page=100 \
+            --jq '.workflow_runs | if length > 0 then max_by(.id).id else error("No current-main CI run") end')
+          [[ "$readiness" =~ ^[1-9][0-9]*$ && "$ci" =~ ^[1-9][0-9]*$ && "$readiness" != "$ci" ]]
+          printf 'revision=%s\nreadiness=%s\nci=%s\n' "$revision" "$readiness" "$ci" >> "$GITHUB_OUTPUT"
+
+      - name: Check out reviewed publication verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: andregoepel/workflows
+          ref: ${{ steps.source.outputs.revision }}
+          path: artifacts/sonar/rehearsal-tool-source
+          persist-credentials: false
+
+      - name: Build and test reviewed verifier offline contracts
+        env:
+          VERIFIER_REVISION: ${{ steps.source.outputs.revision }}
+        run: |
+          set -euo pipefail
+          test "$(git -C artifacts/sonar/rehearsal-tool-source rev-parse HEAD)" = "$VERIFIER_REVISION"
+          cd artifacts/sonar/rehearsal-tool-source/sonar
+          dotnet restore --locked-mode
+          dotnet build -c Release --no-restore
+          dotnet test -c Release --no-build --no-restore -- --minimum-expected-tests 1086
+          dotnet list package --vulnerable --include-transitive --format json --no-restore > "$RUNNER_TEMP/verifier-audit.json"
+          jq -e '(.projects | length) == 2 and (.sources | length) > 0 and
+            all(.projects[] | (.frameworks // [])[];
+              ((.topLevelPackages // []) | length) == 0 and ((.transitivePackages // []) | length) == 0)
+          ' "$RUNNER_TEMP/verifier-audit.json"
+          dotnet publish src/AndreGoepel.Workflows.Sonar/AndreGoepel.Workflows.Sonar.csproj \
+            -c Release --no-restore --no-self-contained -o "$RUNNER_TEMP/core-rehearsal-verifier"
+
+      - name: Exercise outcome recorder offline
+        run: bash scripts/sonar/publication/tests/outcomes.sh
+
+      - name: Verify live evidence and prepare local packages
+        id: rehearsal
+        env:
+          READINESS_RUN: ${{ steps.source.outputs.readiness }}
+          CI_RUN: ${{ steps.source.outputs.ci }}
+          WORKFLOWS_SONAR_TOOL_SHA: ${{ steps.source.outputs.revision }}
+          WORKFLOWS_GITHUB_TOKEN: ${{ github.token }}
+          WORKFLOWS_SONAR_TOKEN: ${{ secrets.SONAR_SCAN_TOKEN }}
+          WORKFLOWS_SONAR_VERIFY_TOKEN: ${{ secrets.SONAR_VERIFY_TOKEN }}
+        run: |
+          bash scripts/sonar/publication/rehearse.sh "$GITHUB_WORKSPACE" \
+            "$RUNNER_TEMP/core-rehearsal-verifier/AndreGoepel.Workflows.Sonar.dll" "$READINESS_RUN" "$CI_RUN"
+
+      - name: Retain rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: core-nuget-rehearsal-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/sonar/publication-rehearsal.*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Summarize non-publishing result
+        env:
+          EVIDENCE: ${{ steps.rehearsal.outputs.evidence }}
+        run: |
+          test -f "$EVIDENCE/results.json"
+          printf '### Core no-upload rehearsal\n\n' >> "$GITHUB_STEP_SUMMARY"
+          printf 'Live readiness and package preparation passed; four invalid inputs were rejected before preparation.\n\n' >> "$GITHUB_STEP_SUMMARY"
+          printf 'No tag, NuGet login, upload or production activation occurred. Hosted handoff provenance, stored intent and cutover remain pending.\n' >> "$GITHUB_STEP_SUMMARY"
