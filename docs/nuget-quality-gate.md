@@ -110,13 +110,13 @@ inventory: one `started` and one terminal event per package or symbol file.
 Shared support and Core preparation were merged in their respective PR #31s.
 Main CI passed in both repositories, and #30's nonempty central new-code check
 is recorded in [the evidence report](sonar-new-code.md). Core PR #32 merged the
-disabled standby workflows. The assigned-ID registration is prepared for review;
-the production cutover remains unexecuted:
+disabled standby workflows, and Core PR #33 merged their assigned-ID registration.
+The production cutover remains unexecuted:
 
-1. Review and merge the assigned preparation ID in the policy and both publication
-   trigger checks together, retaining all false guards. The two workflow IDs above
-   were read from GitHub after registration. Do not change thresholds, exclusions
-   or small-change policy.
+1. Keep the registered preparation ID, policy hash and both publication trigger
+   checks consistent, retaining all false guards. Do not change thresholds,
+   exclusions or small-change policy. Run the separate no-upload rehearsal below
+   before changing production controls.
 2. Recheck the recorded NuGet owner/policy/API-key audit. Review the exact final
    package-to-policy mapping and retire every identified alternative upload route.
 3. After explicit authorization to change the existing CI, submit the cutover PR
@@ -159,6 +159,67 @@ The accepted baseline `e3555256-765a-4247-9489-9a22f02ff42b`, six gate condition
 were verified unchanged. The receipt remained `analysisReady: true` and
 `releaseEligible: false`; its expiry was 2026-10-24 09:52:51 UTC. This is historical
 validation evidence and cannot authorize a later publication.
+
+After PR #33, revision `afaa5c91c49b3555717eb4344af37c44bb87f641` passed
+[CI 40087540674](https://github.com/andregoepel/core/actions/runs/40087540674) and
+[Sonar 40087584458](https://github.com/andregoepel/core/actions/runs/40087584458),
+both attempt 1. Independent verification of analysis
+`36c17d0b-634e-4348-a5a1-ed4356abe90f` again confirmed eight tests, 100% overall and
+new-code coverage across four new lines to cover, zero findings and the unchanged
+baseline and frozen profiles. That analysis-only receipt expires at
+2026-10-24 11:54:05 UTC and cannot authorize publication.
+
+## No-upload runner rehearsal
+
+`.github/workflows/nuget-rehearsal.yml` is a separate, manual workflow. It runs only
+for `main` after approval through the existing `sonar-main` environment, using its
+existing verification credentials. No new environment, token or NuGet policy is
+required. Its GitHub token has only contents/actions read permissions. There is
+no OIDC permission, NuGet login, upload command, tag creation or deployment step.
+The existing CI, Sonar and disabled preparation/publication workflows are unchanged.
+
+After this workflow is reviewed and merged:
+
+1. Verify CI and Sonar readiness succeeded for current main. Dispatch while the
+   readiness receipt is fresh; evidence lifetime is 60 minutes and the mandatory
+   CI age limit is 120 minutes. A rerun or newer main revision requires fresh
+   matching evidence. The rehearsal itself never starts an analysis or changes
+   the baseline.
+2. Run `gh workflow run nuget-rehearsal.yml --repo andregoepel/core --ref main`
+   and approve its `sonar-main` job. Each rehearsal must be a new dispatch, not
+   an attempt rerun. The workflow selects the latest exact-main readiness run;
+   it never silently falls back to an older successful one.
+3. Review the run summary and its `core-nuget-rehearsal-<sha>-<run>-<attempt>`
+   artifact. Receipts, test reports and diagnostic logs are retained for 14 days;
+   package archives are left on the temporary runner and are not uploaded.
+
+The workflow builds the pinned shared verifier and runs its 1,086 offline contract
+tests, including failed/pending/missing gate, expired or superseded evidence,
+artifact substitution and handoff cases. It also runs Core's 11 actual outcome
+recorder scenarios. These are simulated negative cases, executed on the runner;
+they do not alter the central gate or live artifacts.
+
+`scripts/sonar/publication/rehearse.sh` then exercises the same compiled C# verifier
+against live GitHub/Sonar evidence. Four invalid invocations must exit at their
+expected validation boundary without creating a preparation directory: missing
+verification credentials, a dummy publication credential, wrong source revision,
+and a CI run supplied as the readiness producer. The valid invocation runs
+`--nuget-dry-run` with version `0.0.0`, compares versioned compilation inputs,
+builds and tests Core, audits dependencies, inspects both package formats and
+revalidates live evidence after packing. It checks the retained file hashes and
+requires `dryRun: true` and `releaseEligible: false`.
+
+The script passed locally in an isolated Linux container against merged main
+`afaa5c9` and readiness run `40087584458`: all four rejections occurred before
+preparation, then the real `.nupkg` and `.snupkg` passed verification without an
+upload. This is local Linux evidence; the new hosted workflow still requires a
+post-merge dispatch and evidence review.
+
+This rehearsal does not produce an authenticated tagged preparation origin or a
+stored publication intent. Protected production approvals, tag update/deletion
+rejection, hosted preparation-to-publication handoff and removal of the legacy
+publisher remain unverified. Keep #29 open and its hosted integration criterion
+unchecked until the complete handoff and negative matrix have been demonstrated.
 
 ## Remaining acceptance
 
