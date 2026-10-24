@@ -3,6 +3,12 @@
 name: NuGet verified publication
 
 on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Core 1.0.6 symbols only: type recover-core-1.0.6-symbols"
+        required: true
+        type: string
   workflow_run:
     workflows: ["NuGet preparation"]
     types: [completed]
@@ -15,7 +21,13 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ github.repository == 'andregoepel/core' && github.event.workflow_run.workflow_id == 394955059 && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    if: >-
+      github.repository == 'andregoepel/core' &&
+      ((github.event_name == 'workflow_run' && github.event.workflow_run.workflow_id == 394955059 &&
+        github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' &&
+        startsWith(github.event.workflow_run.head_branch, 'v')) ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+        vars.CORE_106_SYMBOL_RECOVERY_SHA == github.sha && inputs.confirmation == 'recover-core-1.0.6-symbols'))
     runs-on: ubuntu-24.04
     environment: nuget-publish
     timeout-minutes: 20
@@ -28,7 +40,7 @@ jobs:
         shell: bash
     steps:
       - name: Validate publication trigger
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         id: event
         env:
           GH_TOKEN: ${{ github.token }}
@@ -62,7 +74,7 @@ jobs:
           printf 'sha=%s\nrun=%s\nattempt=1\ntag=%s\nversion=%s\n' "$GITHUB_SHA" "$run" "$tag" "${tag#v}" >> "$GITHUB_OUTPUT"
 
       - name: Check out trusted candidate
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.event.outputs.sha }}
@@ -70,7 +82,7 @@ jobs:
           persist-credentials: false
 
       - name: Read reviewed publication verifier revision
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         id: verifier-source
         run: |
           set -euo pipefail
@@ -79,7 +91,7 @@ jobs:
           printf 'revision=%s\n' "$revision" >> "$GITHUB_OUTPUT"
 
       - name: Check out reviewed publication verifier
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: andregoepel/workflows
@@ -88,13 +100,13 @@ jobs:
           persist-credentials: false
 
       - name: Set up pinned SDK
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           global-json-file: global.json
 
       - name: Bootstrap trusted verifier
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         id: bootstrap
         env:
           CANDIDATE_SHA: ${{ steps.event.outputs.sha }}
@@ -120,7 +132,7 @@ jobs:
           printf 'dll=%s\n' "$dll" >> "$GITHUB_OUTPUT"
 
       - name: Download publication handoff
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         id: download
         env:
           GH_TOKEN: ${{ github.token }}
@@ -154,7 +166,7 @@ jobs:
             "$(jq -r '.readiness' <<< "$pins")" "$(jq -r '.tagObject' <<< "$pins")" "$(jq -r '.manifest' <<< "$pins")" >> "$GITHUB_OUTPUT"
 
       - name: Export publication context
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         env:
           CANDIDATE_SHA: ${{ steps.event.outputs.sha }}
           PREPARATION_RUN: ${{ steps.event.outputs.run }}
@@ -195,7 +207,7 @@ jobs:
           for name in "${names[@]}"; do printf '%s=%s\n' "$name" "${!name}" >> "$GITHUB_ENV"; done
 
       - name: Verify full handoff before login
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         id: verified-handoff
         shell: bash
         env:
@@ -244,7 +256,7 @@ jobs:
           printf 'intent-sha256=%s\n' "${digest%% *}" >> "$GITHUB_OUTPUT"
 
       - name: Preserve publication intent before login
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         id: publish-intent
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -256,7 +268,7 @@ jobs:
           include-hidden-files: false
 
       - name: Reverify after preserving intent
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         id: recorded-handoff
         shell: bash
         env:
@@ -288,14 +300,14 @@ jobs:
           cmp -- "$PUBLISH_ROOT/inventory.json" "$PUBLISH_ROOT/recorded-inventory.json"
 
       - name: Obtain temporary NuGet credentials
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         id: nuget-login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841
         with:
           user: ${{ secrets.NUGET_USER }}
 
       - name: Push each reverified package and symbol file
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'workflow_run' && success() }}
         id: publish
         shell: bash
         env:
@@ -340,7 +352,7 @@ jobs:
             test -f "$package" && test ! -L "$package"
             arguments=(nuget push "$package" --source https://api.nuget.org/v3/index.json --configfile "$PUBLISH_ROOT/NuGet.Config" --timeout 300)
             case "$file" in
-              *.snupkg) arguments+=(--symbol-source https://www.nuget.org/api/v2/symbolpackage --no-service-endpoint) ;;
+              *.snupkg) ;;
               *.nupkg) arguments+=(--no-symbols) ;;
               *) exit 1 ;;
             esac
@@ -360,7 +372,7 @@ jobs:
           done < "$PUBLISH_ROOT/files"
 
       - name: Record publication outcomes
-        if: ${{ always() && steps.publish-intent.outcome == 'success' }}
+        if: ${{ always() && github.event_name == 'workflow_run' && steps.publish-intent.outcome == 'success' }}
         id: publish-outcomes
         shell: bash
         env:
@@ -424,7 +436,7 @@ jobs:
           mv -- "$PUBLISH_ROOT/outcomes.pending.json" "$PUBLISH_ROOT/outcomes.json"
 
       - name: Preserve publication outcomes
-        if: ${{ always() && steps.publish-outcomes.outcome == 'success' }}
+        if: ${{ always() && github.event_name == 'workflow_run' && steps.publish-outcomes.outcome == 'success' }}
         id: stored-outcomes
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -436,7 +448,7 @@ jobs:
           include-hidden-files: false
 
       - name: Remove private publishing files
-        if: ${{ always() && steps.verified-handoff.outputs.root != '' && (steps.publish-intent.outcome != 'success' || steps.stored-outcomes.outcome == 'success') }}
+        if: ${{ always() && github.event_name == 'workflow_run' && steps.verified-handoff.outputs.root != '' && (steps.publish-intent.outcome != 'success' || steps.stored-outcomes.outcome == 'success') }}
         shell: bash
         env:
           PUBLISH_ROOT: ${{ steps.verified-handoff.outputs.root }}
@@ -449,7 +461,7 @@ jobs:
           rm -rf -- "$PUBLISH_ROOT"
 
       - name: Remove verifier and downloaded handoff
-        if: ${{ always() && (steps.publish-intent.outcome != 'success' || steps.stored-outcomes.outcome == 'success') }}
+        if: ${{ always() && github.event_name == 'workflow_run' && (steps.publish-intent.outcome != 'success' || steps.stored-outcomes.outcome == 'success') }}
         env:
           BOOTSTRAP_ROOT: ${{ steps.bootstrap.outputs.root }}
           HANDOFF_ROOT: ${{ steps.download.outputs.root }}
@@ -463,3 +475,189 @@ jobs:
             test "$(realpath -e -- "$root")" = "$root"
             rm -rf -- "$root"
           done
+
+      - name: Check out reviewed recovery
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Select pinned verifier
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        id: source
+        run: |
+          set -euo pipefail
+          revision=$(jq -er '.verifierRevision' scripts/sonar/publication-target.json)
+          [[ "$revision" =~ ^[a-f0-9]{40}$ ]]
+          printf 'revision=%s\n' "$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Check out pinned verifier
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: andregoepel/workflows
+          ref: ${{ steps.source.outputs.revision }}
+          path: artifacts/sonar/recovery-tool
+          persist-credentials: false
+
+      - name: Set up pinned SDK
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+
+      - name: Bootstrap recovery verifier without credentials
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        id: recovery-bootstrap
+        env:
+          REVISION: ${{ steps.source.outputs.revision }}
+        run: |
+          set -euo pipefail
+          umask 077
+          unset GH_TOKEN GITHUB_TOKEN WORKFLOWS_GITHUB_TOKEN WORKFLOWS_SONAR_TOKEN WORKFLOWS_SONAR_VERIFY_TOKEN
+          unset NUGET_API_KEY NUGET_SYMBOL_API_KEY NUGET_AUTH_TOKEN ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git -C artifacts/sonar/recovery-tool rev-parse HEAD)" = "$REVISION"
+          root=$(mktemp -d "$RUNNER_TEMP/core-symbol-recovery.XXXXXXXX")
+          printf 'root=%s\n' "$root" >> "$GITHUB_OUTPUT"
+          printf '<configuration />\n' > "$root/NuGet.Config"
+          cd artifacts/sonar/recovery-tool/sonar
+          project=src/AndreGoepel.Workflows.Sonar/AndreGoepel.Workflows.Sonar.csproj
+          dotnet restore "$project" --locked-mode
+          dotnet publish "$project" -c Release --no-restore --no-self-contained -o "$root/verifier"
+
+      - name: Reconcile original release and verify recovery main
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        env: &recovery-verification
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOWS_GITHUB_TOKEN: ${{ github.token }}
+          WORKFLOWS_SONAR_TOKEN: ${{ secrets.SONAR_SCAN_TOKEN }}
+          WORKFLOWS_SONAR_VERIFY_TOKEN: ${{ secrets.SONAR_VERIFY_TOKEN }}
+          WORKFLOWS_SONAR_TOOL_SHA: ${{ steps.source.outputs.revision }}
+          VERIFIER_DLL: ${{ steps.recovery-bootstrap.outputs.root }}/verifier/AndreGoepel.Workflows.Sonar.dll
+          RECOVERY_ROOT: ${{ steps.recovery-bootstrap.outputs.root }}
+          RECOVERY_CONFIRMATION: ${{ inputs.confirmation }}
+          AUTHORIZED_RECOVERY_SHA: ${{ vars.CORE_106_SYMBOL_RECOVERY_SHA }}
+        run: |
+          env -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_URL \
+            -u NUGET_API_KEY -u NUGET_SYMBOL_API_KEY -u NUGET_AUTH_TOKEN \
+            pwsh -NoProfile -File scripts/sonar/publication/recovery-106.ps1 -Operation Verify
+
+      - name: Preserve symbol recovery intent
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        id: intent
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: core-106-symbol-recovery-intent-${{ github.run_id }}-1
+          path: ${{ steps.recovery-bootstrap.outputs.root }}/intent.json
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: false
+
+      - name: Bind retained recovery intent
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        env:
+          INTENT_ID: ${{ steps.intent.outputs.artifact-id }}
+          INTENT_DIGEST: ${{ steps.intent.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          [[ "$INTENT_ID" =~ ^[1-9][0-9]{0,15}$ && "$INTENT_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          printf 'RECOVERY_INTENT_ID=%s\nRECOVERY_INTENT_DIGEST=%s\n' "$INTENT_ID" "$INTENT_DIGEST" >> "$GITHUB_ENV"
+
+      - name: Reverify before recovery login
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        env: *recovery-verification
+        run: |
+          env -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_URL \
+            -u NUGET_API_KEY -u NUGET_SYMBOL_API_KEY -u NUGET_AUTH_TOKEN \
+            pwsh -NoProfile -File scripts/sonar/publication/recovery-106.ps1 -Operation Verify
+
+      - name: Obtain temporary recovery credentials
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Reverify immediately before symbol upload
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        env: *recovery-verification
+        run: |
+          env -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_URL \
+            -u NUGET_API_KEY -u NUGET_SYMBOL_API_KEY -u NUGET_AUTH_TOKEN \
+            pwsh -NoProfile -File scripts/sonar/publication/recovery-106.ps1 -Operation Verify
+
+      - name: Push only original Core 1.0.6 symbols
+        if: ${{ github.event_name == 'workflow_dispatch' && success() }}
+        id: push
+        env:
+          RECOVERY_ROOT: ${{ steps.recovery-bootstrap.outputs.root }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+          NUGET_SYMBOL_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          root="$RECOVERY_ROOT"
+          test "$(dirname -- "$root")" = "$RUNNER_TEMP"
+          [[ "$(basename -- "$root")" =~ ^core-symbol-recovery\.[A-Za-z0-9]{8}$ ]]
+          test -d "$root" && test ! -L "$root"
+          test "$(cat -- "$root/NuGet.Config")" = '<configuration />'
+          test ! -e "$root/dispatch.txt"
+          jq -e --arg sha "$GITHUB_SHA" --arg run "$GITHUB_RUN_ID" '
+            .schemaVersion == 1 and .recoverySha == $sha and .recoveryRun == $run and
+            .releaseSha == "06e816a983d27e4d215042acc47e63f1ddba2075" and
+            .file == "AndreGoepel.Core.1.0.6.snupkg" and
+            .sha256 == "f10463edb103b64f6d27f67efb948ccf3731136d472742d0b8eee4c5878d53dc" and
+            .remotePackageVerified == true and .symbolsAbsent == true and .authorizesRetry == false
+          ' "$root/verified.json" > /dev/null
+          verified=$(date -u -d "$(jq -er '.verifiedAt' "$root/verified.json")" +%s)
+          expires=$(date -u -d "$(jq -er '.readinessExpiresAt' "$root/verified.json")" +%s)
+          now=$(date -u +%s)
+          (( verified <= now && now - verified <= 120 && now < expires ))
+          package="$root/original/AndreGoepel.Core.1.0.6.snupkg"
+          test -f "$package" && test ! -L "$package"
+          digest=$(sha256sum -- "$package")
+          test "${digest%% *}" = f10463edb103b64f6d27f67efb948ccf3731136d472742d0b8eee4c5878d53dc
+          printf 'started\n' > "$root/dispatch.txt"
+          env -u GH_TOKEN -u GITHUB_TOKEN -u WORKFLOWS_GITHUB_TOKEN -u WORKFLOWS_SONAR_TOKEN \
+            -u WORKFLOWS_SONAR_VERIFY_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_URL \
+            -u NUGET_AUTH_TOKEN dotnet nuget push "$package" --source https://api.nuget.org/v3/index.json \
+            --configfile "$root/NuGet.Config" --timeout 300
+          printf 'cli-success\n' > "$root/dispatch.txt"
+
+      - name: Record symbol recovery outcomes
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && steps.intent.outcome == 'success' }}
+        id: recovery-record
+        env:
+          RECOVERY_ROOT: ${{ steps.recovery-bootstrap.outputs.root }}
+          LOGIN_OUTCOME: ${{ steps.login.outcome }}
+          PUSH_OUTCOME: ${{ steps.push.outcome }}
+        run: pwsh -NoProfile -File scripts/sonar/publication/recovery-106.ps1 -Operation Record
+
+      - name: Preserve symbol recovery outcomes
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && steps.recovery-record.outcome == 'success' }}
+        id: outcomes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: core-106-symbol-recovery-outcomes-${{ github.run_id }}-1
+          path: |
+            ${{ steps.recovery-bootstrap.outputs.root }}/outcomes.json
+            ${{ steps.recovery-bootstrap.outputs.root }}/verified.json
+            ${{ steps.recovery-bootstrap.outputs.root }}/signature.log
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: false
+
+      - name: Remove recovery files
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && steps.recovery-bootstrap.outputs.root != '' && (steps.intent.outcome != 'success' || steps.outcomes.outcome == 'success') }}
+        env:
+          RECOVERY_ROOT: ${{ steps.recovery-bootstrap.outputs.root }}
+        run: |
+          set -euo pipefail
+          test "$(dirname -- "$RECOVERY_ROOT")" = "$RUNNER_TEMP"
+          [[ "$(basename -- "$RECOVERY_ROOT")" =~ ^core-symbol-recovery\.[A-Za-z0-9]{8}$ ]]
+          test -d "$RECOVERY_ROOT" && test ! -L "$RECOVERY_ROOT"
+          test "$(realpath -e -- "$RECOVERY_ROOT")" = "$RECOVERY_ROOT"
+          rm -rf -- "$RECOVERY_ROOT"

@@ -1,0 +1,47 @@
+{
+  "repository": "andregoepel/core",
+  "repositoryId": 1312477613,
+  "sha": "06e816a983d27e4d215042acc47e63f1ddba2075",
+  "tag": "v1.0.6",
+  "version": "1.0.6",
+  "preparationRun": 40100316402,
+  "publicationRun": 40100437520,
+  "publicationWorkflow": 394955060,
+  "manifestSha256": "93496351309c5ea9318a3d2147879861de0f42254749ffa129781699a8e50241",
+  "packageSha256": "7bfb454800f52ffebef660a64648a62396896df69e1df697d721176e60acbb74",
+  "symbolsSha256": "f10463edb103b64f6d27f67efb948ccf3731136d472742d0b8eee4c5878d53dc",
+  "signedPackageSha256": "c07de56345db2bafadc0eeeb78348d4b6c18b7f556a07b35163cd353e8986b35",
+  "pdbSha256": "20c2fd9d3c1f012195ab056eeabf39d61d33f693b8a7f53a212f9112a1ae7673",
+  "pdbGuid": "D267506612B942E18FC7F56CF0CFF837",
+  "pdbChecksum": "665067d2b912e1320fc7f56cf0cff83724f096b0ea089d01124c26ce9718a1da",
+  "artifacts": [
+    {
+      "role": "origin",
+      "id": 12562771115,
+      "run": 40100316402,
+      "name": "nuget-origin-06e816a983d27e4d215042acc47e63f1ddba2075-40100316402-1",
+      "sha256": "568bd97824ddf92433144b1b192caf382c759fadd5e432d1914006f7fb698d36"
+    },
+    {
+      "role": "batch",
+      "id": 12562114337,
+      "run": 40100316402,
+      "name": "nuget-batch-06e816a983d27e4d215042acc47e63f1ddba2075-40100316402-1",
+      "sha256": "12ee1746a432eadfd8f60e5c27c4aeb4f85e4f021ec21809e4a8b1ed4250c6a8"
+    },
+    {
+      "role": "intent",
+      "id": 12562104949,
+      "run": 40100437520,
+      "name": "nuget-publish-intent-40100437520-1",
+      "sha256": "2bd2cee8bdbf61ae22d802cff20f26a9b12ed8cb742d832c37d388d6747a5f64"
+    },
+    {
+      "role": "outcomes",
+      "id": 12562926001,
+      "run": 40100437520,
+      "name": "nuget-publish-outcomes-40100437520-1",
+      "sha256": "c5c8a8b8752204919c98905a7d03d3aa7047812188d3020560e3e13da4298e8a"
+    }
+  ]
+}

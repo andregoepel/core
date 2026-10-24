@@ -32,8 +32,10 @@ and `always()` with the existing outcome dependencies for evidence and cleanup.
 After merge, a new original `vX.Y.Z` tag on the current main revision can request
 preparation approval. Its successful completion can request publication approval.
 The second job verifies the complete handoff and stored intent before NuGet login
-and revalidates evidence before every file push. Neither workflow offers a manual
-dispatch trigger. Existing tags and completed historical runs are not replayed by
+and revalidates evidence before every file push. Preparation has no manual
+dispatch trigger. The publisher's separately guarded, initially disabled
+[Core 1.0.6 symbol recovery](nuget-symbol-recovery-106.md) is its only manual path.
+Existing tags and completed historical runs are not replayed by
 merging; reruns are rejected by the first-attempt checks.
 
 The existing event fixtures execute the production preparation check and both
@@ -78,7 +80,10 @@ and stale main. This does not claim a hosted production-tag run or NuGet upload.
    Do not rerun, retarget or delete an immutable release tag, or create another
    publication on the same SHA. Review a recovery plan before proceeding.
 
-No actual NuGet login/upload has been tested. The package owner can still
+The first authorized 1.0.6 release completed NuGet login and main-package upload;
+symbols failed because of the CLI source override. See the
+[incident and controlled recovery plan](nuget-symbol-recovery-106.md). Keep #29
+open until remote symbol availability is also verified. The package owner can still
 introduce future credentials or policies. External evidence storage remains
 deferred; GitHub retention is finite. Keep #29 open until activation and the
 separately authorized first release have been verified.
@@ -197,7 +202,8 @@ Shared support and Core preparation were merged in their respective PR #31s.
 Main CI passed in both repositories, and #30's nonempty central new-code check
 is recorded in [the evidence report](sonar-new-code.md). Core PR #32 merged the
 disabled standby workflows, and Core PR #33 merged their assigned-ID registration.
-Steps 1–4 below are complete; step 5 is the current activation review:
+Steps 1–5 below were completed through PR #37. The first 1.0.6 release remains
+partially complete pending the separately reviewed symbol recovery above:
 
 1. Review and merge the bundled CI publisher removal, acceptance workflow pair,
    matching CI/preparation hashes and [tagged test runbook](nuget-tagged-acceptance.md).
