@@ -3,6 +3,28 @@ namespace AndreGoepel.Core.Tests;
 public sealed class ResultTests
 {
     [Fact]
+    public void Fail_NullError_ThrowsArgumentNullException()
+    {
+        // Act
+        var error = Record.Exception(() => Result.Fail(null!));
+
+        // Assert
+        var exception = Assert.IsType<ArgumentNullException>(error);
+        Assert.Equal("error", exception.ParamName);
+    }
+
+    [Fact]
+    public void FailOfT_NullError_ThrowsArgumentNullException()
+    {
+        // Act
+        var error = Record.Exception(() => Result.Fail<int>(null!));
+
+        // Assert
+        var exception = Assert.IsType<ArgumentNullException>(error);
+        Assert.Equal("error", exception.ParamName);
+    }
+
+    [Fact]
     public void Ok_Called_ReturnsSuccessWithNoError()
     {
         // Act

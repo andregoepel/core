@@ -1,0 +1,134 @@
+# Review template only; outside .github/workflows. Preparation workflow ID 0 is deliberately unregistered.
+# Standby only. Activation and NuGet policy cutover require separate approval.
+name: NuGet preparation
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: core-nuget-prepare-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: ${{ false && github.repository == 'andregoepel/core' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-24.04
+    environment: sonar-nuget-prepare
+    timeout-minutes: 75
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Verify tag push
+        id: event
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = andregoepel/core
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF_TYPE" = tag
+          test "$GITHUB_REF" = "refs/tags/$GITHUB_REF_NAME"
+          test "$GITHUB_WORKFLOW_SHA" = "$GITHUB_SHA"
+          test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/nuget-prepare.yml@$GITHUB_REF"
+          [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})$ ]]
+          version="${GITHUB_REF_NAME#v}"
+          jq -e --arg ref "$GITHUB_REF" '
+            .repository.full_name == "andregoepel/core" and
+            .ref == $ref and .created == true and .deleted == false and .forced == false and
+            .before == "0000000000000000000000000000000000000000" and
+            (.after | test("^[a-f0-9]{40}\\z")) and .after != .before
+          ' "$GITHUB_EVENT_PATH" > /dev/null
+          main_sha=$(gh api repos/andregoepel/core/git/ref/heads/main --jq '.object.sha')
+          test "$main_sha" = "$GITHUB_SHA"
+          readiness_run=$(gh api --method GET repos/andregoepel/core/actions/workflows/392994102/runs \
+            -f branch=main -f event=workflow_run -f head_sha="$GITHUB_SHA" -f per_page=100 \
+            --jq '.workflow_runs | if length > 0 then max_by(.id).id else error("No main readiness run") end')
+          [[ "$readiness_run" =~ ^[1-9][0-9]*$ ]]
+          event_digest=$(sha256sum -- "$GITHUB_EVENT_PATH")
+          printf 'version=%s\nreadiness-run=%s\nevent-sha256=%s\n' "$version" "$readiness_run" "${event_digest%% *}" >> "$GITHUB_OUTPUT"
+          after=$(jq -r '.after' "$GITHUB_EVENT_PATH")
+          printf '### Preparation tag-event evidence\n\nTag: %s\n\nCandidate commit: %s\n\nOriginal push after: %s\n\nReadiness run: %s\n' \
+            "$GITHUB_REF_NAME" "$GITHUB_SHA" "$after" "$readiness_run" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read reviewed publication verifier revision
+        id: verifier-source
+        run: |
+          set -euo pipefail
+          revision=$(jq -er '.verifierRevision' scripts/sonar/publication-target.json)
+          [[ "$revision" =~ ^[a-f0-9]{40}$ && "$revision" != 0000000000000000000000000000000000000000 ]]
+          printf 'revision=%s\n' "$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Check out reviewed publication verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: andregoepel/workflows
+          ref: ${{ steps.verifier-source.outputs.revision }}
+          path: artifacts/sonar/publication-tool-source
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+
+      - name: Build reviewed publication verifier
+        run: |
+          set -euo pipefail
+          unset WORKFLOWS_GITHUB_TOKEN WORKFLOWS_SONAR_TOKEN WORKFLOWS_SONAR_VERIFY_TOKEN
+          unset GITHUB_TOKEN GH_TOKEN ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL
+          unset NUGET_API_KEY NUGET_SYMBOL_API_KEY NUGET_AUTH_TOKEN
+          revision=$(git -C artifacts/sonar/publication-tool-source rev-parse HEAD)
+          test "$revision" = "$(jq -er '.verifierRevision' scripts/sonar/publication-target.json)"
+          printf 'WORKFLOWS_SONAR_TOOL_SHA=%s\n' "$revision" >> "$GITHUB_ENV"
+          cd artifacts/sonar/publication-tool-source/sonar
+          project=src/AndreGoepel.Workflows.Sonar/AndreGoepel.Workflows.Sonar.csproj
+          dotnet restore "$project" --locked-mode
+          dotnet publish "$project" -c Release --no-restore --no-self-contained -o "$RUNNER_TEMP/core-publication-verifier"
+
+      - name: Prepare NuGet batch
+        id: batch
+        env:
+          READINESS_RUN: ${{ steps.event.outputs.readiness-run }}
+          EVENT_SHA256: ${{ steps.event.outputs.event-sha256 }}
+          PACKAGE_VERSION: ${{ steps.event.outputs.version }}
+          WORKFLOWS_GITHUB_TOKEN: ${{ github.token }}
+          WORKFLOWS_SONAR_TOKEN: ${{ secrets.SONAR_SCAN_TOKEN }}
+          WORKFLOWS_SONAR_VERIFY_TOKEN: ${{ secrets.SONAR_VERIFY_TOKEN }}
+        run: |
+          set -euo pipefail
+          event_digest=$(sha256sum -- "$GITHUB_EVENT_PATH")
+          test "${event_digest%% *}" = "$EVENT_SHA256"
+          dotnet "$RUNNER_TEMP/core-publication-verifier/AndreGoepel.Workflows.Sonar.dll" --root "$GITHUB_WORKSPACE" --nuget-prepare \
+            --sha "$GITHUB_SHA" --version "$PACKAGE_VERSION" \
+            --readiness-run "$READINESS_RUN" --tag "$GITHUB_REF_NAME"
+
+      - name: Publish package batch
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.batch.outputs.batch-artifact-name }}
+          path: |
+            ${{ steps.batch.outputs.manifest-path }}
+            ${{ steps.batch.outputs.packages-path }}
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+      - name: Publish origin
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.batch.outputs.origin-artifact-name }}
+          path: ${{ steps.batch.outputs.origin-path }}
+          if-no-files-found: error
+          retention-days: 1

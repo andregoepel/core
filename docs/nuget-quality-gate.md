@@ -1,0 +1,134 @@
+# Core publication gate: review and migration
+
+Tracks [#29](https://github.com/andregoepel/core/issues/29) and the source-change
+evidence in [#30](https://github.com/andregoepel/core/issues/30). This change prepares
+the publication path. It does not enable it or remove the existing tag publisher.
+
+## Inventory and proposed mapping
+
+Read-only inventory on 2026-10-23:
+
+| Item | Observed state | Proposed state |
+| --- | --- | --- |
+| Package | `AndreGoepel.Core`; authenticated owner list contains only `andre.goepel` | Same package and owner |
+| Publication | `ci.yml`, `pack-and-publish`, `v*` push, official NuGet/login then dotnet push | Separate verified preparation and protected publication |
+| Readiness | `sonar-main.yml`, workflow 392994102 | Reuse exact successful analysis; leave this workflow unchanged |
+| Required CI | `ci.yml`, workflow 320576462 | Successful exact-main run/attempt and approved workflow fingerprint |
+| Repository secrets | `NUGET_USER` name present; values not read | Owner identity only; no persistent publication API key |
+| Environments | `sonar-main` exists | Add `sonar-nuget-prepare` and `nuget-publish` only after approval |
+| Rulesets | Default-branch protection; no release-tag ruleset observed | Immutable `v*` tags, no bypass actors |
+| NuGet Trusted Publisher | One active Core policy: `andregoepel/core`, `ci.yml`, no environment restriction, exact package `AndreGoepel.Core`, push new versions only | Replace with the reviewed environment-bound Core publication policy |
+| NuGet API keys | Authenticated account reports no API keys | Keep persistent API keys absent; recheck before cutover |
+
+Public ownership source: <https://www.nuget.org/packages/AndreGoepel.Core>.
+The authenticated NuGet audit confirmed the current owner list, the matching
+Core Trusted Publisher policy and an empty API-key inventory. No other policy in
+that account matched Core or a wildcard covering Core. No credentials were read,
+created or changed. This is a point-in-time audit; repeat it before cutover. The
+owner retains administrative control and can create new credentials or upload
+manually, so the pipeline does not constrain future owner actions. The active
+`ci.yml` policy remains a known bypass until the separately approved migration.
+
+Proposed single policy: package `AndreGoepel.Core`; account `andre.goepel`;
+GitHub owner `andregoepel`; repository `core`; workflow `nuget-publish.yml`;
+environment `nuget-publish`. Restrict the production environment to `main`, require
+`andregoepel` as reviewer, allow self-review for the single operator, and disallow
+administrator bypass. Preparation receives only read/analysis credentials in its
+own environment with a reviewed `v*` tag policy; it has no OIDC permission.
+
+## Prepared files and shared dependency
+
+- `scripts/sonar/publication-target.json` binds repository, readiness workflow,
+  exact package inventory and the independently pinned publication verifier.
+- `scripts/sonar/nuget-policy.json` pins preparation workflow identity, normalized
+  content hash, required successful steps and a 120-minute maximum age.
+- `scripts/sonar/publication/nuget-prepare.yml` and `nuget-publish.yml` are review
+  templates **outside `.github/workflows`**, with literal-false job guards.
+- `scripts/sonar/publication/release-tags.ruleset.json` is an unapplied proposal.
+- The companion [workflows PR #31](https://github.com/andregoepel/workflows/pull/31)
+  adapts the accepted app-foundation verifier
+  to consumer-supplied identities. Core does not copy its C# implementation or
+  add tool dependencies to the published Core library.
+
+The verifier revision is deliberately empty and the preparation workflow ID is
+zero until the companion revision has been reviewed and the standby workflow
+registered. Both are rejected by the verifier. Registering a workflow, recording
+its actual ID/hash and replacing the empty pin require review; never guess IDs or
+reuse app-foundation's values. The publication verifier pin is separate from
+`main-policy.json.toolRevision`, which continues to identify the accepted analysis
+runner. This avoids changing the existing Sonar Action for this preparation.
+
+## Verification before credentials and upload
+
+1. Require an original, first-attempt release tag creation for the current main
+   revision. Reject moved/deleted tags, another main tip, changed tag objects and
+   a mismatched workflow revision or event.
+2. Authenticate the latest completed readiness producer and its artifacts.
+   Validate exact CI run/attempt and mandatory jobs/steps, source and contract
+   hashes, accepted baseline, frozen policy/profiles, completed Sonar task,
+   current analysis, gate conditions and freshness. Reruns, newer producers,
+   changed policy or expired evidence require new validation.
+3. Build and test the versioned package, compare compilation inputs with the
+   analyzed build, and bind both `.nupkg` and `.snupkg` to package ID, version,
+   source commit and content hashes. Preserve authenticated preparation origin.
+4. In the protected publication job, verify the complete handoff and retain an
+   immutable intent artifact. Revalidate the stored intent and live evidence
+   before official `NuGet/login`. Revalidate the complete package batch and each
+   file hash immediately before `dotnet nuget push`. Record intent, individual
+   attempts and outcomes for investigation; do not blindly retry partial pushes.
+
+`library-analysis-readiness` with `releaseEligible: false` is only analysis
+evidence. It cannot authorize a push by itself. Preparation and verifier outputs
+also remain non-publishing; authorization additionally requires the reviewed
+enabled pipeline, current live checks, protected approval and scoped NuGet policy.
+The C# tool cannot log in to NuGet or upload a package. Rehearsal uses an in-memory
+sink; actual publication uses only NuGet/login and dotnet's native push command.
+
+Run `bash scripts/sonar/publication/tests/outcomes.sh` on Linux with Bash, jq and
+the standard GNU utilities to test the template's actual outcome-recording step
+offline. It uses synthetic intent/event files, without credentials or uploads,
+and checks successful single/multiple-package batches, partial outcomes and
+malformed event sequences. The expected event count comes from the verified file
+inventory: one `started` and one terminal event per package or symbol file.
+
+## Controlled cutover and rollback
+
+This sequence is proposed, not executed:
+
+1. Review and merge the shared support and this Core preparation. Retain green
+   main CI and complete #30's nonempty central new-code check against the existing
+   accepted baseline. Do not change thresholds, exclusions or small-change policy.
+2. Recheck the recorded NuGet owner/policy/API-key audit. Review the exact final
+   package-to-policy mapping and retire every identified alternative upload route.
+3. Submit one activation preparation PR that removes only the legacy
+   `pack-and-publish` job, installs the new workflows with false guards, records
+   the merged verifier pin and registers the real preparation ID/hash. Review the
+   resulting CI fingerprint update; preserve all other CI behavior. Merge only
+   with operator approval. Do not create `v*` test tags while the old route exists.
+4. Configure the reviewed environments and immutable tag rules, prove tag update
+   and deletion rejection using separately authorized non-release tags, then
+   migrate the NuGet policy. Retain the resulting read-back evidence privately.
+5. Run an explicitly approved hosted rehearsal with isolated non-release tags,
+   no publication credentials and no upload. Test failed/pending/missing gate,
+   expired/wrong-revision/superseded evidence, altered artifact and successful
+   eligible handoff. Record exact run/attempt and verify cleanup. The production
+   templates require reviewed test-event adaptations for this drill; their
+   current `v*` triggers must not be used as test triggers.
+6. Review the combined evidence and authorize the final activation separately.
+   Enable preparation and publication only after all bypasses are removed. First
+   real release is a separate explicit operation with fresh evidence and approval.
+
+On failure, keep publication disabled, retain evidence and revalidate main. After
+activation, disable the new publication path and revoke its policy if needed;
+never restore the unguarded legacy route as a rollback. Published package versions
+are not transactional or safely overwriteable: reconcile NuGet state and use a
+new reviewed version where necessary. External evidence storage remains deferred.
+
+## Remaining acceptance
+
+#29 remains open until hosted integration, reviewed cutover and bypass removal
+are evidenced, with a fresh private audit at cutover. Inactive templates do not enforce the current
+legacy publisher. #30 remains open until the reviewed source change is merged and
+the exact central main analysis shows nonzero new lines to cover, measured passing
+new-code coverage, full test/coverage inventory and successful readiness. Neither
+issue is closed by merging this preparation alone.
