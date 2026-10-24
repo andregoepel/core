@@ -4,18 +4,18 @@ Tracks [#29](https://github.com/andregoepel/core/issues/29) and the source-chang
 evidence in [#30](https://github.com/andregoepel/core/issues/30). The legacy CI
 publisher was removed and the tagged no-upload test passed. The separately
 authorized NuGet policy migration, protected production environments and immutable
-release-tag controls are complete. This activation PR enables the reviewed
-preparation and publication paths when merged. Opening the PR does not activate
-main; merging it does not create a release tag or authorize the first release.
+release-tag controls are complete. PR #37 activated the reviewed preparation and
+publication paths. The first release, Core 1.0.6, is complete after the separately
+authorized symbol recovery. Subsequent releases still require explicit approval.
 
-## Activation scope and first release
+## Active publication path
 
 Preparation now declares the `v*` push trigger and validates strict `vX.Y.Z`
 versions, with no leading zeros, prerelease/build suffixes or component above
 99999. It preserves the first-attempt, original creation, exact-main, workflow
 revision and readiness checks, including the original annotated-tag object.
-The preparation job's literal-false guard and the publisher's literal-false job
-and step guards are removed together. Repository, event, workflow identity,
+PR #37 removed the preparation and publisher literal-false guards together.
+Repository, event, workflow identity,
 success and failure-recording predicates remain intact. Both jobs still require
 their protected environment approval. The former
 `SONAR_NUGET_ACCEPTANCE_ENABLED` switch does not control production; the historical
@@ -23,25 +23,26 @@ acceptance consumer stays off.
 
 `nuget-policy.json` binds workflow 394955059 to the SHA-256 of the exact LF bytes
 of `nuget-prepare.yml`. The trigger, guard, event validation and hash must be
-reviewed together. This activation updates the hash for the enabled preparation
-file. Subsequent edits require another reviewed hash update. Only
-`nuget-prepare.yml` and `nuget-publish.yml` change; all other Actions remain
-unchanged. The publisher preserves `success()` before credentials and uploads,
+reviewed together. Activation updated the hash for the enabled preparation file.
+Subsequent preparation edits require another reviewed hash update. The #39 cleanup
+changes only `nuget-publish.yml`; preparation and its hash stay unchanged.
+The publisher preserves `success()` before credentials and uploads,
 and `always()` with the existing outcome dependencies for evidence and cleanup.
 
-After merge, a new original `vX.Y.Z` tag on the current main revision can request
+A new original `vX.Y.Z` tag on the current main revision can request
 preparation approval. Its successful completion can request publication approval.
 The second job verifies the complete handoff and stored intent before NuGet login
-and revalidates evidence before every file push. Preparation has no manual
-dispatch trigger. The publisher's separately guarded, initially disabled
-[Core 1.0.6 symbol recovery](nuget-symbol-recovery-106.md) is its only manual path.
+and revalidates evidence before every file push. Neither preparation nor
+publication has a manual dispatch trigger. The completed one-time
+[Core 1.0.6 symbol recovery](nuget-symbol-recovery-106.md) was removed in #39.
 Existing tags and completed historical runs are not replayed by
 merging; reruns are rejected by the first-attempt checks.
 
 The existing event fixtures execute the production preparation check and both
 consumer checks offline. They verify version extraction, lightweight/annotated
 events, malformed and former test tags, altered events, wrong revisions, reruns
-and stale main. This does not claim a hosted production-tag run or NuGet upload.
+and stale main. These offline fixtures do not upload; the separately authorized
+first release and remote verification are recorded below.
 
 ### Controls verified on October 24, 2026
 
@@ -58,14 +59,14 @@ and stale main. This does not claim a hosted production-tag run or NuGet upload.
   disposable-tag drill rejected all four update/deletion attempts. Test resources
   were removed; original tags and default-branch rules were unchanged.
 
-### First release after reviewed activation
+### Checklist for an explicitly authorized release
 
-1. Verify CI and central Sonar on the exact activation merge revision against the
-   accepted baseline. Recheck the controls above before release. This PR's local
+1. Verify CI and central Sonar on the exact current main revision against the
+   accepted baseline. Recheck the controls above before release. A PR's local
    Sonar result and historical readiness receipts cannot authorize publication.
 2. Obtain explicit approval for the package version and release. Select a fresh
    strict `vX.Y.Z` version and keep main stable throughout the handoff. Do not
-   create a tag as part of reviewing or merging this activation PR.
+   create a tag as part of reviewing or merging a PR.
 3. Ensure the latest exact-main readiness receipt is fresh before creating the
    original tag. Readiness lasts 60 minutes; the required CI and preparation age
    limits are 120 minutes. Both environment approvals and all verification must
@@ -80,13 +81,15 @@ and stale main. This does not claim a hosted production-tag run or NuGet upload.
    Do not rerun, retarget or delete an immutable release tag, or create another
    publication on the same SHA. Review a recovery plan before proceeding.
 
-The first authorized 1.0.6 release completed NuGet login and main-package upload;
-symbols failed because of the CLI source override. See the
-[incident and controlled recovery plan](nuget-symbol-recovery-106.md). Keep #29
-open until remote symbol availability is also verified. The package owner can still
-introduce future credentials or policies. External evidence storage remains
-deferred; GitHub retention is finite. Keep #29 open until activation and the
-separately authorized first release have been verified.
+The first authorized 1.0.6 release initially uploaded only the main package because
+of a CLI symbol-source defect. The separately authorized recovery uploaded the
+original symbols, and independent package, symbol archive and PDB verification
+completed #29. See the [incident and acceptance record](nuget-symbol-recovery-106.md)
+for immutable run identities, hashes and the incorrect PDB lookup's casing defect.
+The next ordinary release must use a subsequent reviewed commit, preserving the
+one-publisher-run-per-SHA guard. The package owner can still introduce future
+credentials or policies. External evidence storage remains deferred; GitHub
+retention is finite.
 
 ## Inventory and proposed mapping
 
@@ -155,9 +158,9 @@ merged, GitHub assigned these workflow identities, read back on 2026-10-24:
 The preparation ID is bound in `nuget-policy.json` and both publication-trigger
 checks. The policy also pins the exact preparation file bytes, including its
 updated registration comment. Any subsequent preparation edit requires a reviewed
-hash update. Registration alone did not enable production publication; this
-activation removes the guards separately. The tagged acceptance switch does not
-disable the production path. No tag or workflow dispatch is needed for this PR.
+hash update. Registration alone did not enable production publication; PR #37
+removed the guards separately. The tagged acceptance switch does not disable the
+production path. The #39 cleanup requires no tag or workflow dispatch.
 
 The publication verifier pin is separate from
 `main-policy.json.toolRevision`, which continues to identify the accepted analysis
@@ -202,8 +205,9 @@ Shared support and Core preparation were merged in their respective PR #31s.
 Main CI passed in both repositories, and #30's nonempty central new-code check
 is recorded in [the evidence report](sonar-new-code.md). Core PR #32 merged the
 disabled standby workflows, and Core PR #33 merged their assigned-ID registration.
-Steps 1–5 below were completed through PR #37. The first 1.0.6 release remains
-partially complete pending the separately reviewed symbol recovery above:
+Steps 1–5 below were completed through PR #37. The first 1.0.6 release and the
+separately reviewed symbol recovery are complete. These are the historical
+cutover steps:
 
 1. Review and merge the bundled CI publisher removal, acceptance workflow pair,
    matching CI/preparation hashes and [tagged test runbook](nuget-tagged-acceptance.md).
@@ -318,12 +322,12 @@ records exact runs. Production protections and policy migration were verified
 afterward as listed in the controls section. None of these tests uploaded to
 NuGet or verified a real production credential exchange.
 
-## Remaining acceptance
+## Acceptance status
 
-#29 remains open for review and merge of activation, exact-main verification, and
-the separately authorized first real release. Hosted no-upload integration,
-legacy route retirement and the production controls are evidenced above; they
-do not establish successful delivery to NuGet. #30's technical criteria are fully
-evidenced by the merged source change, isolated negative/recovery check and exact
-central main readiness report. Completing #30 does not authorize a release or
-close #29.
+#29 is closed after activation, exact-main CI/Sonar verification and independent
+verification of the first release's package and symbols. #30's source-change
+criteria are recorded in the central readiness evidence report. #39 removes the
+completed one-time recovery path and keeps the ordinary publishing regression
+checks. It remains open through cleanup PR review and separate operator merge,
+until CI and central Sonar also pass on the resulting main revision. None of
+these acceptance records authorizes another release.

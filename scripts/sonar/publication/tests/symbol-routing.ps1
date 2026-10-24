@@ -4,8 +4,7 @@ Set-StrictMode -Version Latest
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
 $workflow = (Get-Content -Raw (Join-Path $repo '.github/workflows/nuget-publish.yml')).Replace("`r`n","`n")
 $regular = [regex]::Match($workflow,'(?ms)^            arguments=\(nuget push.*?^            esac$')
-$recovery = [regex]::Match($workflow,'(?m)dotnet nuget push "\$package" --source https://api.nuget.org/v3/index.json \\\n            --configfile "\$root/NuGet.Config" --timeout 300')
-if (!$regular.Success -or !$recovery.Success) { throw 'Publisher command blocks not found.' }
+if (!$regular.Success) { throw 'Publisher command block not found.' }
 $package = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.nupkg')
 $symbols = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.snupkg')
 if ($package.Count -ne 1 -or $symbols.Count -ne 1) { throw 'Provide exactly one already-built package and its symbol archive.' }
@@ -17,13 +16,10 @@ $setup = @'
 set -euo pipefail
 package=$1
 PUBLISH_ROOT=$2
-root=$2
 file=$(basename -- "$package")
 '@
 $ordinaryScript = $setup + "`n" + ($regular.Value -replace '(?m)^            ','') + "`n" + 'printf ''%s\n'' "${arguments[@]}"'
-$recoveryScript = $setup + "`n" + 'dotnet() { printf ''%s\n'' "$@"; }' + "`n" + $recovery.Value
 [IO.File]::WriteAllText((Join-Path $folder 'ordinary.sh'),$ordinaryScript,[Text.UTF8Encoding]::new($false))
-[IO.File]::WriteAllText((Join-Path $folder 'recovery.sh'),$recoveryScript,[Text.UTF8Encoding]::new($false))
 
 function Invoke-Isolated([string]$Command,[string[]]$Arguments) {
     $start=[Diagnostics.ProcessStartInfo]::new($Command)
@@ -82,11 +78,10 @@ try {
     }
     if (!$ready) { throw 'Loopback mock failed to start.' }
     $results=@()
-    foreach ($mode in @('ordinary-package','ordinary-symbols','legacy-symbols','recovery-symbols')) {
+    foreach ($mode in @('ordinary-package','ordinary-symbols','legacy-symbols')) {
         # Arrange
         $file=if ($mode -eq 'ordinary-package') { $package[0].FullName } else { $symbols[0].FullName }
-        $script=if ($mode -eq 'recovery-symbols') { 'recovery.sh' } else { 'ordinary.sh' }
-        $capture=Invoke-Isolated $bash @((Join-Path $folder $script).Replace('\','/'),$file.Replace('\','/'),$folder.Replace('\','/'))
+        $capture=Invoke-Isolated $bash @((Join-Path $folder 'ordinary.sh').Replace('\','/'),$file.Replace('\','/'),$folder.Replace('\','/'))
         if ($capture.exitCode -ne 0) { throw $capture.stderr }
         $arguments=@($capture.stdout.TrimEnd() -split '\r?\n')
         $source=[Array]::IndexOf($arguments,'--source')
@@ -110,14 +105,14 @@ try {
 
     # Assert
     $requests=@(Get-Content $requestsPath | ForEach-Object { $_ | ConvertFrom-Json })
-    if ($requests.Count -ne 3 -or ($requests.path -join ',') -cne '/api/v2/package,/api/v2/symbolpackage,/api/v2/symbolpackage' -or
+    if ($requests.Count -ne 2 -or ($requests.path -join ',') -cne '/api/v2/package,/api/v2/symbolpackage' -or
         @($requests | Where-Object credentialPresent).Count -ne 0 -or
         $requests[0].sha256 -cne (Get-FileHash $package[0].FullName).Hash.ToLowerInvariant() -or
-        $requests[1].sha256 -cne (Get-FileHash $symbols[0].FullName).Hash.ToLowerInvariant() -or $requests[1].sha256 -cne $requests[2].sha256) {
+        $requests[1].sha256 -cne (Get-FileHash $symbols[0].FullName).Hash.ToLowerInvariant()) {
         throw 'Wrong endpoint, implicit symbol dispatch, credentials or changed bytes reached the loopback mock.'
     }
     [ordered]@{cases=$results;requests=$requests;externalUpload=$false;credentialsUsed=$false} | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $folder 'result.json')
-    Write-Output "PASS four actual CLI routing cases and exact request payload hashes. Evidence: $folder"
+    Write-Output "PASS three actual CLI routing cases and exact request payload hashes. Evidence: $folder"
 } finally {
     try { Invoke-WebRequest "${base}stop" -TimeoutSec 5 -SkipHttpErrorCheck | Out-Null } catch { }
     Wait-Job $server -Timeout 5 | Out-Null
