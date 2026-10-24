@@ -1,10 +1,20 @@
 # Core tagged no-upload handoff acceptance
 
-Part of [Core #29](https://github.com/andregoepel/core/issues/29). This runbook and
-its workflow changes are prepared for review. The new hosted tagged test has not
-run. It can run only after this revision reaches main and the operator authorizes
-the test setup. Merging this PR removes the legacy CI publisher but does not
-change NuGet policies or enable publication.
+Historical runbook for the completed [Core #29](https://github.com/andregoepel/core/issues/29)
+test on revision `3e18daa24f74ab439e17ff5278eaf7a500a5d4a4` (PR #35).
+[Preparation 40092501057](https://github.com/andregoepel/core/actions/runs/40092501057)
+and [acceptance 40092632653](https://github.com/andregoepel/core/actions/runs/40092632653)
+passed on attempt 1; independent inspection passed before expiry. The temporary
+tag, environments and credential copies were removed; the acceptance switch is
+false. No package was uploaded.
+
+The production preparation transition replaces the test-tag route with `v*`
+and a literal-false job guard. The sections below describe the historical test
+revision, not instructions to run against current production environments. Do not
+recreate the old tag, repurpose those environments or rerun the completed consumer.
+Any future hosted acceptance needs a separately reviewed test revision and approval.
+See [the current production plan](nuget-quality-gate.md) for active controls and
+remaining activation steps.
 
 ## Boundaries and workflow roles
 
@@ -146,6 +156,8 @@ bash scripts/sonar/publication/tests/outcomes.sh
 bash scripts/sonar/publication/tests/outcomes.sh .github/workflows/nuget-acceptance.yml acceptance-outcomes
 ```
 
-These execute the actual workflow Bash/jq blocks: 27 event/credential scenarios
-and 11 outcome scenarios for each of the production and acceptance recorders.
-They complement shared contract tests; they do not replace the hosted handoff.
+These execute the actual workflow Bash/jq blocks. The event fixtures now cover
+production tag preparation and the unchanged production/acceptance consumers,
+including rejection of the former acceptance tag by production. Each outcome
+recorder has 11 scenarios. These complement shared contract tests; they do not
+enable jobs, request credentials or replace a hosted handoff.
