@@ -210,7 +210,7 @@
     {
       "id": 320576462,
       "path": ".github/workflows/ci.yml",
-      "fileSha256": "2ad4f2841767c5fa567aa4e3dbf105e5de7dd73fbb48bc263a79ffdb5f02e26d",
+      "fileSha256": "06c70b90de788b22fe46a3d69651744ae285a47677320ec4cefd1c4192a12833",
       "sharedPath": "",
       "sharedSha": "",
       "jobs": {
