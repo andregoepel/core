@@ -1,4 +1,4 @@
-# Standby registration only. Preparation workflow ID 0 remains deliberately unregistered.
+# Registered preparation workflow: 394955059 (NuGet preparation).
 # Publishing remains disabled; registration and cutover require separate review.
 name: NuGet verified publication
 
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ false && github.repository == 'andregoepel/core' && github.event.workflow_run.workflow_id == 0 && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    if: ${{ false && github.repository == 'andregoepel/core' && github.event.workflow_run.workflow_id == 394955059 && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
     runs-on: ubuntu-24.04
     environment: nuget-publish
     timeout-minutes: 20
@@ -48,7 +48,7 @@ jobs:
             .action == "completed" and .repository.full_name == "andregoepel/core" and
             (.workflow_run | .repository.full_name == "andregoepel/core" and
               .head_repository.full_name == "andregoepel/core" and
-              .workflow_id == 0 and .path == ".github/workflows/nuget-prepare.yml" and
+              .workflow_id == 394955059 and .path == ".github/workflows/nuget-prepare.yml" and
               .name == "NuGet preparation" and .event == "push" and
               .status == "completed" and .conclusion == "success" and .head_sha == $sha and
               (.head_branch | test("^v(0|[1-9][0-9]{0,4})\\.(0|[1-9][0-9]{0,4})\\.(0|[1-9][0-9]{0,4})\\z")) and
