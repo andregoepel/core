@@ -1,26 +1,40 @@
-# Core publication gate: review and migration
+# Core publication gate: activation and operation
 
 Tracks [#29](https://github.com/andregoepel/core/issues/29) and the source-change
 evidence in [#30](https://github.com/andregoepel/core/issues/30). The legacy CI
 publisher was removed and the tagged no-upload test passed. The separately
 authorized NuGet policy migration, protected production environments and immutable
-release-tag controls are complete. Production publication stays disabled.
+release-tag controls are complete. This activation PR enables the reviewed
+preparation and publication paths when merged. Opening the PR does not activate
+main; merging it does not create a release tag or authorize the first release.
 
-## Production preparation transition
+## Activation scope and first release
 
 Preparation now declares the `v*` push trigger and validates strict `vX.Y.Z`
 versions, with no leading zeros, prerelease/build suffixes or component above
 99999. It preserves the first-attempt, original creation, exact-main, workflow
 revision and readiness checks, including the original annotated-tag object.
-The preparation job has a literal-false guard: merging this change does not run
-preparation, enable publishing or authorize a release. The former
-`SONAR_NUGET_ACCEPTANCE_ENABLED` switch cannot activate this production job.
+The preparation job's literal-false guard and the publisher's literal-false job
+and step guards are removed together. Repository, event, workflow identity,
+success and failure-recording predicates remain intact. Both jobs still require
+their protected environment approval. The former
+`SONAR_NUGET_ACCEPTANCE_ENABLED` switch does not control production; the historical
+acceptance consumer stays off.
 
 `nuget-policy.json` binds workflow 394955059 to the SHA-256 of the exact LF bytes
 of `nuget-prepare.yml`. The trigger, guard, event validation and hash must be
-reviewed together. Changing the guard for eventual activation requires another
-hash update. No other workflow changes are included: `nuget-publish.yml` retains
-literal-false job/step guards, and the old acceptance consumer stays off.
+reviewed together. This activation updates the hash for the enabled preparation
+file. Subsequent edits require another reviewed hash update. Only
+`nuget-prepare.yml` and `nuget-publish.yml` change; all other Actions remain
+unchanged. The publisher preserves `success()` before credentials and uploads,
+and `always()` with the existing outcome dependencies for evidence and cleanup.
+
+After merge, a new original `vX.Y.Z` tag on the current main revision can request
+preparation approval. Its successful completion can request publication approval.
+The second job verifies the complete handoff and stored intent before NuGet login
+and revalidates evidence before every file push. Neither workflow offers a manual
+dispatch trigger. Existing tags and completed historical runs are not replayed by
+merging; reruns are rejected by the first-attempt checks.
 
 The existing event fixtures execute the production preparation check and both
 consumer checks offline. They verify version extraction, lightweight/annotated
@@ -42,11 +56,32 @@ and stale main. This does not claim a hosted production-tag run or NuGet upload.
   disposable-tag drill rejected all four update/deletion attempts. Test resources
   were removed; original tags and default-branch rules were unchanged.
 
-After merge, verify exact-main CI and Sonar. Leave both preparation and publishing
-disabled until separately authorized activation is reviewed. The first real
-release then needs fresh evidence and explicit approval. Historical test receipts
-cannot authorize it. No actual NuGet login/upload has been tested, and the package
-owner can still introduce future credentials or policies. Keep #29 open.
+### First release after reviewed activation
+
+1. Verify CI and central Sonar on the exact activation merge revision against the
+   accepted baseline. Recheck the controls above before release. This PR's local
+   Sonar result and historical readiness receipts cannot authorize publication.
+2. Obtain explicit approval for the package version and release. Select a fresh
+   strict `vX.Y.Z` version and keep main stable throughout the handoff. Do not
+   create a tag as part of reviewing or merging this activation PR.
+3. Ensure the latest exact-main readiness receipt is fresh before creating the
+   original tag. Readiness lasts 60 minutes; the required CI and preparation age
+   limits are 120 minutes. Both environment approvals and all verification must
+   finish within the applicable limits. Record run IDs and attempts before any
+   recovery decision.
+4. Approve preparation only for the authorized tag and SHA, then approve
+   publication only for its successful first-attempt preparation and the same
+   current main SHA. Inspect the retained intent and per-file outcomes, and
+   independently confirm the package and symbols on NuGet. A successful push
+   command alone does not establish remote availability.
+5. If any check fails, retain evidence and reconcile partial remote outcomes.
+   Do not rerun, retarget or delete an immutable release tag, or create another
+   publication on the same SHA. Review a recovery plan before proceeding.
+
+No actual NuGet login/upload has been tested. The package owner can still
+introduce future credentials or policies. External evidence storage remains
+deferred; GitHub retention is finite. Keep #29 open until activation and the
+separately authorized first release have been verified.
 
 ## Inventory and proposed mapping
 
@@ -86,13 +121,15 @@ own environment with a reviewed `v*` tag policy; it has no OIDC permission.
   exact package inventory and the independently pinned publication verifier.
 - `scripts/sonar/nuget-policy.json` pins preparation workflow identity, exact
   content hash, required successful steps and a 120-minute maximum age.
-- `.github/workflows/nuget-prepare.yml` declares production tags with a
-  literal-false job guard. The unchanged historical `nuget-acceptance.yml`
+- `.github/workflows/nuget-prepare.yml` handles production tags through the
+  protected preparation environment. The unchanged historical `nuget-acceptance.yml`
   still requires `SONAR_NUGET_ACCEPTANCE_ENABLED`, which remains false.
-- `nuget-publish.yml` remains unchanged, with **literal-false job and step guards**.
-  CI loses only `pack-and-publish`; its build/test job and triggers are preserved.
-  `main-policy.json` records the new exact CI file hash. Sonar, the earlier manual
-  rehearsal and all other existing Actions remain unchanged.
+- `nuget-publish.yml` handles successful preparation through the protected
+  publication environment and the existing verifier, official `NuGet/login`
+  and native `dotnet nuget push`. CI already lost its legacy `pack-and-publish`
+  job; its reviewed hash in `main-policy.json`, build/test job and triggers are
+  unchanged. Sonar, the earlier manual rehearsal and all other Actions remain
+  unchanged.
 - `scripts/sonar/publication/release-tags.ruleset.json` is the applied, verified
   release-tag rule definition.
 - The companion [workflows PR #31](https://github.com/andregoepel/workflows/pull/31)
@@ -113,9 +150,9 @@ merged, GitHub assigned these workflow identities, read back on 2026-10-24:
 The preparation ID is bound in `nuget-policy.json` and both publication-trigger
 checks. The policy also pins the exact preparation file bytes, including its
 updated registration comment. Any subsequent preparation edit requires a reviewed
-hash update. Registration does not enable production publication. The tagged
-acceptance switch is separate from the production workflow's literal-false
-guards. No tag or workflow dispatch is needed to register the new consumer.
+hash update. Registration alone did not enable production publication; this
+activation removes the guards separately. The tagged acceptance switch does not
+disable the production path. No tag or workflow dispatch is needed for this PR.
 
 The publication verifier pin is separate from
 `main-policy.json.toolRevision`, which continues to identify the accepted analysis
@@ -148,7 +185,7 @@ The C# tool cannot log in to NuGet or upload a package. Rehearsal uses an in-mem
 sink; actual publication uses only NuGet/login and dotnet's native push command.
 
 Run `bash scripts/sonar/publication/tests/outcomes.sh` on Linux with Bash, jq and
-the standard GNU utilities to test the standby workflow's actual outcome-recording step
+the standard GNU utilities to test the publisher's actual outcome-recording step
 offline. It uses synthetic intent/event files, without credentials or uploads,
 and checks successful single/multiple-package batches, partial outcomes and
 malformed event sequences. The expected event count comes from the verified file
@@ -160,7 +197,7 @@ Shared support and Core preparation were merged in their respective PR #31s.
 Main CI passed in both repositories, and #30's nonempty central new-code check
 is recorded in [the evidence report](sonar-new-code.md). Core PR #32 merged the
 disabled standby workflows, and Core PR #33 merged their assigned-ID registration.
-Steps 1–4 below are complete; step 5 remains a separate authorization boundary:
+Steps 1–4 below are complete; step 5 is the current activation review:
 
 1. Review and merge the bundled CI publisher removal, acceptance workflow pair,
    matching CI/preparation hashes and [tagged test runbook](nuget-tagged-acceptance.md).
@@ -178,10 +215,10 @@ Steps 1–4 below are complete; step 5 remains a separate authorization boundary
    Removing the job from current main does not revoke that policy, stop old
    workflow reruns or make historical `v*` tags safe. Keep the issue open until
    bypass removal is demonstrated; never restore the legacy publisher as rollback.
-5. Review the combined evidence and authorize final activation separately. A
-   production preparation trigger/guard change requires another reviewed byte
-   hash update. Enable the real publisher only after all controls are verified.
-   The first real release requires fresh evidence and explicit approval.
+5. Review the activation PR that removes both workflows' literal-false guards
+   and updates the preparation byte hash. Merge only after review, then verify
+   exact-main CI and Sonar. Follow the first-release checklist above under its
+   separate release authorization; do not use a release tag to test this PR.
 
 On failure, keep publication disabled, retain evidence and revalidate main. After
 activation, disable the new publication path and revoke its policy if needed;
@@ -268,17 +305,19 @@ artifact `12559090125` was independently downloaded and its digest verified.
 also passed at attempt 1. Its receipt expired on 2026-10-24 at 12:21:19 UTC; these
 are historical results, not current release authorization.
 
-This rehearsal does not produce an authenticated tagged preparation origin or a
-stored publication intent. Protected production approvals, tag update/deletion
-rejection and the hosted tagged handoff remain unverified. The bundled PR removes
-the legacy CI job, while its account policy remains for a separate migration. Keep #29 open and its hosted integration criterion
-unchecked until the complete handoff and negative matrix have been demonstrated.
+This earlier rehearsal did not produce an authenticated tagged preparation
+origin or a stored publication intent. The subsequent PR #35 tagged acceptance
+completed that handoff and its negative matrix; the historical runbook above
+records exact runs. Production protections and policy migration were verified
+afterward as listed in the controls section. None of these tests uploaded to
+NuGet or verified a real production credential exchange.
 
 ## Remaining acceptance
 
-#29 remains open until hosted integration, reviewed cutover and bypass removal
-are evidenced, with a fresh private audit at cutover. Removing the legacy CI job
-does not revoke historical credential routes or enable the future publisher. #30's technical criteria are fully
+#29 remains open for review and merge of activation, exact-main verification, and
+the separately authorized first real release. Hosted no-upload integration,
+legacy route retirement and the production controls are evidenced above; they
+do not establish successful delivery to NuGet. #30's technical criteria are fully
 evidenced by the merged source change, isolated negative/recovery check and exact
-central main readiness report. Completing #30 does not authorize publication or
+central main readiness report. Completing #30 does not authorize a release or
 close #29.
