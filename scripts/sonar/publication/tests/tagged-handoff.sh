@@ -9,7 +9,8 @@ export PATH="$workspace/bin:$PATH"
 export FIXTURE_SHA
 FIXTURE_SHA=$(printf 'a%.0s' {1..40})
 export FIXTURE_MAIN="$FIXTURE_SHA"
-tag="sonar-poc/nuget/$(printf 'b%.0s' {1..32})/v0.0.0"
+tag=v1.2.3
+acceptance_tag="sonar-poc/nuget/$(printf 'b%.0s' {1..32})/v0.0.0"
 
 cat > "$workspace/bin/gh" <<'STUB'
 #!/usr/bin/env bash
@@ -34,6 +35,7 @@ extract() {
 }
 extract nuget-prepare 'Verify tag push' producer
 extract nuget-acceptance 'Validate publication trigger' consumer
+extract nuget-publish 'Validate publication trigger' publisher
 extract nuget-acceptance 'Obtain temporary NuGet credentials' login
 
 jq -n --arg sha "$FIXTURE_SHA" --arg ref "refs/tags/$tag" '{
@@ -41,7 +43,7 @@ jq -n --arg sha "$FIXTURE_SHA" --arg ref "refs/tags/$tag" '{
   created: true, deleted: false, forced: false,
   before: "0000000000000000000000000000000000000000", after: $sha
 }' > "$workspace/producer.json"
-jq -n --arg sha "$FIXTURE_SHA" --arg tag "$tag" '{
+jq -n --arg sha "$FIXTURE_SHA" --arg tag "$acceptance_tag" '{
   action: "completed", repository: {full_name: "andregoepel/core"}, workflow_run: {
     repository: {full_name: "andregoepel/core"}, head_repository: {full_name: "andregoepel/core"},
     workflow_id: 394955059, path: ".github/workflows/nuget-prepare.yml", name: "NuGet preparation",
@@ -49,6 +51,7 @@ jq -n --arg sha "$FIXTURE_SHA" --arg tag "$tag" '{
     head_branch: $tag, id: 456, run_attempt: 1
   }
 }' > "$workspace/consumer.json"
+jq --arg tag "$tag" '.workflow_run.head_branch = $tag' "$workspace/consumer.json" > "$workspace/publisher.json"
 
 run_case() (
   local name=$1 kind=$2 filter=$3 expected=$4 code=0
@@ -64,6 +67,9 @@ run_case() (
   else
     export GITHUB_EVENT_NAME=workflow_run GITHUB_REF=refs/heads/main
     export GITHUB_WORKFLOW_REF=andregoepel/core/.github/workflows/nuget-acceptance.yml@refs/heads/main
+    if [[ "$kind" == publisher ]]; then
+      export GITHUB_WORKFLOW_REF=andregoepel/core/.github/workflows/nuget-publish.yml@refs/heads/main
+    fi
   fi
   jq "$filter" "$workspace/$kind.json" > "$GITHUB_EVENT_PATH"
   : > "$GITHUB_OUTPUT"
@@ -74,12 +80,17 @@ run_case() (
   # Assert
   if [[ "$expected" == pass ]]; then
     test "$code" = 0
-    grep -qx 'version=0.0.0' "$GITHUB_OUTPUT"
+    local expected_version=1.2.3 expected_tag="$tag"
+    if [[ "$kind" == consumer ]]; then
+      expected_version=0.0.0
+      expected_tag="$acceptance_tag"
+    fi
+    grep -qx "version=$expected_version" "$GITHUB_OUTPUT"
     if [[ "$kind" == producer ]]; then
       digest=$(sha256sum -- "$GITHUB_EVENT_PATH")
       grep -qx "event-sha256=${digest%% *}" "$GITHUB_OUTPUT"
     else
-      grep -qx "tag=$tag" "$GITHUB_OUTPUT"
+      grep -qx "tag=$expected_tag" "$GITHUB_OUTPUT"
       grep -qx 'run=456' "$GITHUB_OUTPUT"
     fi
   else
@@ -89,15 +100,22 @@ run_case() (
   printf 'PASS %s\n' "$name"
 )
 
-run_case lightweight-tag producer '.' pass
-run_case annotated-tag-original-object producer '.after = "cccccccccccccccccccccccccccccccccccccccc"' pass
+run_case release-lightweight-tag producer '.' pass
+run_case release-annotated-tag-original-object producer '.after = "cccccccccccccccccccccccccccccccccccccccc"' pass
 run_case updated-tag producer '.created = false | .before = .after' reject
 run_case deleted-tag producer '.deleted = true' reject
 run_case forced-tag producer '.forced = true' reject
 run_case wrong-producer-repository producer '.repository.full_name = "attacker/core"' reject
 run_case changed-push-ref producer '.ref = "refs/tags/v0.0.0"' reject
 run_case producer-rerun producer '.' reject GITHUB_RUN_ATTEMPT=2
-run_case release-tag producer '.' reject GITHUB_REF_NAME=v0.0.0 GITHUB_REF=refs/tags/v0.0.0 GITHUB_WORKFLOW_REF=andregoepel/core/.github/workflows/nuget-prepare.yml@refs/tags/v0.0.0
+for invalid_tag in "$acceptance_tag" v01.2.3 v1.02.3 v1.2.03 v1.2 v1.2.3-preview v1.2.3+build v100000.2.3 v1.2.3/extra; do
+  run_case "invalid-release-tag-$invalid_tag" producer ".ref = \"refs/tags/$invalid_tag\"" reject \
+    GITHUB_REF_NAME="$invalid_tag" GITHUB_REF="refs/tags/$invalid_tag" \
+    GITHUB_WORKFLOW_REF="andregoepel/core/.github/workflows/nuget-prepare.yml@refs/tags/$invalid_tag"
+done
+run_case producer-branch producer '.' reject GITHUB_REF_TYPE=branch
+run_case producer-dispatch producer '.' reject GITHUB_EVENT_NAME=workflow_dispatch
+run_case producer-wrong-revision producer '.' reject GITHUB_WORKFLOW_SHA=cccccccccccccccccccccccccccccccccccccccc
 run_case stale-main producer '.' reject FIXTURE_MAIN=cccccccccccccccccccccccccccccccccccccccc
 run_case full-consumer-event consumer '.' pass
 run_case wrong-consumer-repository consumer '.workflow_run.head_repository.full_name = "attacker/core"' reject
@@ -110,6 +128,17 @@ run_case production-tag-consumer consumer '.workflow_run.head_branch = "v0.0.0"'
 run_case consumer-rerun consumer '.' reject GITHUB_RUN_ATTEMPT=2
 run_case wrong-consumer-revision consumer '.' reject GITHUB_WORKFLOW_SHA=cccccccccccccccccccccccccccccccccccccccc
 run_case production-consumer-context consumer '.' reject GITHUB_WORKFLOW_REF=andregoepel/core/.github/workflows/nuget-publish.yml@refs/heads/main
+run_case full-production-event publisher '.' pass
+run_case acceptance-tag-production-consumer publisher ".workflow_run.head_branch = \"$acceptance_tag\"" reject
+run_case wrong-production-producer-id publisher '.workflow_run.workflow_id = 1' reject
+run_case wrong-production-producer-path publisher '.workflow_run.path = ".github/workflows/ci.yml"' reject
+run_case failed-production-producer publisher '.workflow_run.conclusion = "failure"' reject
+run_case wrong-production-source publisher '.workflow_run.head_sha = "cccccccccccccccccccccccccccccccccccccccc"' reject
+run_case production-producer-second-attempt publisher '.workflow_run.run_attempt = 2' reject
+run_case production-consumer-rerun publisher '.' reject GITHUB_RUN_ATTEMPT=2
+run_case production-wrong-revision publisher '.' reject GITHUB_WORKFLOW_SHA=cccccccccccccccccccccccccccccccccccccccc
+run_case production-stale-main publisher '.' reject FIXTURE_MAIN=cccccccccccccccccccccccccccccccccccccccc
+run_case acceptance-context-production-consumer publisher '.' reject GITHUB_WORKFLOW_REF=andregoepel/core/.github/workflows/nuget-acceptance.yml@refs/heads/main
 
 # Act: the simulated login must succeed without any credential channel.
 env -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_URL -u NUGET_API_KEY -u NUGET_SYMBOL_API_KEY -u NUGET_AUTH_TOKEN bash "$workspace/login.sh" > /dev/null

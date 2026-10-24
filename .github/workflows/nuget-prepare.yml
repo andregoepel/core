@@ -1,10 +1,10 @@
 # Registered preparation workflow: 394955059 (NuGet preparation).
-# Acceptance tags only; the repository switch is off until an approved test.
+# Production tags only; preparation stays disabled until separate activation approval.
 name: NuGet preparation
 
 on:
   push:
-    tags: ["sonar-poc/nuget/*/v*"]
+    tags: ["v*"]
 
 permissions:
   contents: read
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   prepare:
-    if: ${{ vars.SONAR_NUGET_ACCEPTANCE_ENABLED == 'true' && github.repository == 'andregoepel/core' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/sonar-poc/nuget/') }}
+    if: ${{ false && github.repository == 'andregoepel/core' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     environment: sonar-nuget-prepare
     timeout-minutes: 75
@@ -38,8 +38,8 @@ jobs:
           test "$GITHUB_WORKFLOW_SHA" = "$GITHUB_SHA"
           test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/nuget-prepare.yml@$GITHUB_REF"
           [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
-          [[ "$GITHUB_REF_NAME" =~ ^sonar-poc/nuget/[a-f0-9]{32}/v(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})$ ]]
-          version="${GITHUB_REF_NAME##*/v}"
+          [[ "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})$ ]]
+          version="${GITHUB_REF_NAME#v}"
           jq -e --arg ref "$GITHUB_REF" '
             .repository.full_name == "andregoepel/core" and
             .ref == $ref and .created == true and .deleted == false and .forced == false and

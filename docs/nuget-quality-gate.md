@@ -1,9 +1,52 @@
 # Core publication gate: review and migration
 
 Tracks [#29](https://github.com/andregoepel/core/issues/29) and the source-change
-evidence in [#30](https://github.com/andregoepel/core/issues/30). This change prepares
-the tagged no-upload test and removes the legacy tag publisher from CI. Production
-publication stays disabled. The NuGet account policy is not changed by this PR.
+evidence in [#30](https://github.com/andregoepel/core/issues/30). The legacy CI
+publisher was removed and the tagged no-upload test passed. The separately
+authorized NuGet policy migration, protected production environments and immutable
+release-tag controls are complete. Production publication stays disabled.
+
+## Production preparation transition
+
+Preparation now declares the `v*` push trigger and validates strict `vX.Y.Z`
+versions, with no leading zeros, prerelease/build suffixes or component above
+99999. It preserves the first-attempt, original creation, exact-main, workflow
+revision and readiness checks, including the original annotated-tag object.
+The preparation job has a literal-false guard: merging this change does not run
+preparation, enable publishing or authorize a release. The former
+`SONAR_NUGET_ACCEPTANCE_ENABLED` switch cannot activate this production job.
+
+`nuget-policy.json` binds workflow 394955059 to the SHA-256 of the exact LF bytes
+of `nuget-prepare.yml`. The trigger, guard, event validation and hash must be
+reviewed together. Changing the guard for eventual activation requires another
+hash update. No other workflow changes are included: `nuget-publish.yml` retains
+literal-false job/step guards, and the old acceptance consumer stays off.
+
+The existing event fixtures execute the production preparation check and both
+consumer checks offline. They verify version extraction, lightweight/annotated
+events, malformed and former test tags, altered events, wrong revisions, reruns
+and stale main. This does not claim a hosted production-tag run or NuGet upload.
+
+### Controls verified on October 24, 2026
+
+- NuGet has one exact `AndreGoepel.Core` policy for `andregoepel/core`, workflow
+  `nuget-publish.yml`, environment `nuget-publish`, and new versions only. It
+  replaced the old `ci.yml` mapping in place. The authenticated audit found sole
+  owner `andre.goepel`, no API keys and no alternative matching/wildcard policies.
+- `sonar-nuget-prepare` permits only tags matching `v*`; `nuget-publish` permits
+  only branch `main`. Both require `andregoepel` review, permit the agreed
+  single-operator self-review and prohibit administrator bypass. The explicitly
+  approved existing Core Sonar credential copies are configured.
+- [Immutable release tags](https://github.com/andregoepel/core/rules/25781835)
+  forbid updates/deletions of `refs/tags/v*`, with no bypass actors. An equivalent
+  disposable-tag drill rejected all four update/deletion attempts. Test resources
+  were removed; original tags and default-branch rules were unchanged.
+
+After merge, verify exact-main CI and Sonar. Leave both preparation and publishing
+disabled until separately authorized activation is reviewed. The first real
+release then needs fresh evidence and explicit approval. Historical test receipts
+cannot authorize it. No actual NuGet login/upload has been tested, and the package
+owner can still introduce future credentials or policies. Keep #29 open.
 
 ## Inventory and proposed mapping
 
@@ -27,8 +70,8 @@ Core Trusted Publisher policy and an empty API-key inventory. No other policy in
 that account matched Core or a wildcard covering Core. No credentials were read,
 created or changed. This is a point-in-time audit; repeat it before cutover. The
 owner retains administrative control and can create new credentials or upload
-manually, so the pipeline does not constrain future owner actions. The active
-`ci.yml` policy remains a known bypass until the separately approved migration.
+manually, so the pipeline does not constrain future owner actions. The then-active
+`ci.yml` policy was a known bypass; the October 24 migration above retired it.
 
 Proposed single policy: package `AndreGoepel.Core`; account `andre.goepel`;
 GitHub owner `andregoepel`; repository `core`; workflow `nuget-publish.yml`;
@@ -43,14 +86,15 @@ own environment with a reviewed `v*` tag policy; it has no OIDC permission.
   exact package inventory and the independently pinned publication verifier.
 - `scripts/sonar/nuget-policy.json` pins preparation workflow identity, exact
   content hash, required successful steps and a 120-minute maximum age.
-- `.github/workflows/nuget-prepare.yml` now accepts only isolated acceptance tags.
-  It and the new `nuget-acceptance.yml` require the off-by-default repository
-  switch `SONAR_NUGET_ACCEPTANCE_ENABLED`. Neither can publish packages.
+- `.github/workflows/nuget-prepare.yml` declares production tags with a
+  literal-false job guard. The unchanged historical `nuget-acceptance.yml`
+  still requires `SONAR_NUGET_ACCEPTANCE_ENABLED`, which remains false.
 - `nuget-publish.yml` remains unchanged, with **literal-false job and step guards**.
   CI loses only `pack-and-publish`; its build/test job and triggers are preserved.
   `main-policy.json` records the new exact CI file hash. Sonar, the earlier manual
   rehearsal and all other existing Actions remain unchanged.
-- `scripts/sonar/publication/release-tags.ruleset.json` is an unapplied proposal.
+- `scripts/sonar/publication/release-tags.ruleset.json` is the applied, verified
+  release-tag rule definition.
 - The companion [workflows PR #31](https://github.com/andregoepel/workflows/pull/31)
   adapts the accepted app-foundation verifier
   to consumer-supplied identities. Core does not copy its C# implementation or
@@ -116,7 +160,7 @@ Shared support and Core preparation were merged in their respective PR #31s.
 Main CI passed in both repositories, and #30's nonempty central new-code check
 is recorded in [the evidence report](sonar-new-code.md). Core PR #32 merged the
 disabled standby workflows, and Core PR #33 merged their assigned-ID registration.
-The production cutover remains unexecuted:
+Steps 1–4 below are complete; step 5 remains a separate authorization boundary:
 
 1. Review and merge the bundled CI publisher removal, acceptance workflow pair,
    matching CI/preparation hashes and [tagged test runbook](nuget-tagged-acceptance.md).

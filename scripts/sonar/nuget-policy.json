@@ -1,6 +1,6 @@
 {
   "workflowId": 394955059,
-  "workflowSha256": "74fbacd96fb4c4a6a204eb26ba65998508aaa32f3e077b685a8b156d21c73db0",
+  "workflowSha256": "a49a26f7b48f74980aa6429950a7e79784d6d7898cfa6d14217082b5d3bacdad",
   "maximumAgeMinutes": 120,
   "jobs": {
     "prepare": ["Verify tag push", "Prepare NuGet batch", "Publish package batch", "Publish origin"]
