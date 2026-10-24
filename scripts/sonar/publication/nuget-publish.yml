@@ -396,7 +396,8 @@ jobs:
             --arg hash "$INTENT_SHA256" --arg artifact "$INTENT_ARTIFACT_ID" --arg digest "$INTENT_ARTIFACT_DIGEST" \
             --arg login "$LOGIN_OUTCOME" --arg push "$PUSH_OUTCOME" --arg time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
             $intent[0] as $i | $events[0] as $e |
-            if ($e | length) > 24 then error("Too many attempt rows") else . end |
+            (($i.packages | length) * 2) as $expectedRows |
+            if ($e | length) > $expectedRows then error("Too many attempt rows") else . end |
             reduce range(0; $e | length) as $n (.;
               if $e[$n].file != $i.packages[($n / 2 | floor)].file or
                  (if $n % 2 == 0 then $e[$n].status != "started"
@@ -406,7 +407,7 @@ jobs:
               then error("Invalid attempt sequence") else . end) |
             if ($push == "skipped" and ($e | length) != 0) or
                ($push != "skipped" and $login != "success") or
-               ($push == "success" and (($e | length) != 24 or any($e[]; .status != "started" and .status != "cli-success")))
+               ($push == "success" and (($e | length) != $expectedRows or any($e[]; .status != "started" and .status != "cli-success")))
             then error("Inconsistent step outcomes") else . end |
             {schemaVersion: 1, kind: "publication-outcomes", intentSha256: $hash,
              intentArtifactId: $artifact, intentArtifactDigest: $digest,

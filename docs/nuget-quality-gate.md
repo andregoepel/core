@@ -84,6 +84,13 @@ enabled pipeline, current live checks, protected approval and scoped NuGet polic
 The C# tool cannot log in to NuGet or upload a package. Rehearsal uses an in-memory
 sink; actual publication uses only NuGet/login and dotnet's native push command.
 
+Run `bash scripts/sonar/publication/tests/outcomes.sh` on Linux with Bash, jq and
+the standard GNU utilities to test the template's actual outcome-recording step
+offline. It uses synthetic intent/event files, without credentials or uploads,
+and checks successful single/multiple-package batches, partial outcomes and
+malformed event sequences. The expected event count comes from the verified file
+inventory: one `started` and one terminal event per package or symbol file.
+
 ## Controlled cutover and rollback
 
 This sequence is proposed, not executed:
