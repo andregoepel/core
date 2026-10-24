@@ -42,7 +42,7 @@ own environment with a reviewed `v*` tag policy; it has no OIDC permission.
   exact package inventory and the independently pinned publication verifier.
 - `scripts/sonar/nuget-policy.json` pins preparation workflow identity, exact
   content hash, required successful steps and a 120-minute maximum age.
-- `.github/workflows/nuget-prepare.yml` and `nuget-publish.yml` are new standby
+- `.github/workflows/nuget-prepare.yml` and `nuget-publish.yml` are registered standby
   workflows with **literal-false job guards**. They cannot prepare or publish a
   release. The existing CI, Sonar and Dependabot Actions are unchanged.
 - `scripts/sonar/publication/release-tags.ruleset.json` is an unapplied proposal.
@@ -53,12 +53,21 @@ own environment with a reviewed `v*` tag policy; it has no OIDC permission.
 
 The publication verifier is pinned to the reviewed merged workflows commit
 `68683cdc6a268328ed6ce686d26c26ace479eab0`. Its main validation and all 1,086 tests
-on each of Windows and Linux passed. The preparation content hash is recorded;
-the preparation workflow ID and both publication-trigger identity checks remain
-zero until GitHub registers the new workflow on main. This incomplete policy is
-rejected by the verifier. After merge, read back the actual workflow ID and
-review its replacement in the policy and both trigger checks together; never
-guess IDs or reuse app-foundation's values. Keep all false guards in place.
+on each of Windows and Linux passed. After [Core PR #32](https://github.com/andregoepel/core/pull/32)
+merged, GitHub assigned these workflow identities, read back on 2026-10-24:
+
+| Workflow | ID | Path |
+| --- | --- | --- |
+| NuGet preparation | `394955059` | `.github/workflows/nuget-prepare.yml` |
+| NuGet verified publication | `394955060` | `.github/workflows/nuget-publish.yml` |
+
+The preparation ID is bound in `nuget-policy.json` and both publication-trigger
+checks. The policy also pins the exact preparation file bytes, including its
+updated registration comment. Any subsequent preparation edit requires a reviewed
+hash update. GitHub's workflow registration state does not enable its jobs: both
+job guards and the publication step guards remain literal false. No release tag
+or workflow dispatch is needed to register these identities.
+
 The publication verifier pin is separate from
 `main-policy.json.toolRevision`, which continues to identify the accepted analysis
 runner. This avoids changing the existing Sonar Action for this preparation.
@@ -100,14 +109,14 @@ inventory: one `started` and one terminal event per package or symbol file.
 
 Shared support and Core preparation were merged in their respective PR #31s.
 Main CI passed in both repositories, and #30's nonempty central new-code check
-is recorded in [the evidence report](sonar-new-code.md). The next registration
-step is prepared for review; the production cutover remains unexecuted:
+is recorded in [the evidence report](sonar-new-code.md). Core PR #32 merged the
+disabled standby workflows. The assigned-ID registration is prepared for review;
+the production cutover remains unexecuted:
 
-1. Review and merge the disabled standby workflows and reviewed verifier pin.
-   Read back GitHub's assigned preparation workflow ID, then submit its policy
-   and publication-trigger registration together for review, with false guards
-   retained. GitHub's assignment cannot be predicted before registration. Do not
-   change thresholds, exclusions or small-change policy.
+1. Review and merge the assigned preparation ID in the policy and both publication
+   trigger checks together, retaining all false guards. The two workflow IDs above
+   were read from GitHub after registration. Do not change thresholds, exclusions
+   or small-change policy.
 2. Recheck the recorded NuGet owner/policy/API-key audit. Review the exact final
    package-to-policy mapping and retire every identified alternative upload route.
 3. After explicit authorization to change the existing CI, submit the cutover PR
@@ -133,6 +142,23 @@ activation, disable the new publication path and revoke its policy if needed;
 never restore the unguarded legacy route as a rollback. Published package versions
 are not transactional or safely overwriteable: reconcile NuGet state and use a
 new reviewed version where necessary. External evidence storage remains deferred.
+
+## Main verification after standby registration
+
+Merged revision `06953d03815d5ae7152898abbbc91292505ec597` passed
+[CI 40079546043, attempt 1](https://github.com/andregoepel/core/actions/runs/40079546043)
+and [Sonar 40079586341, attempt 1](https://github.com/andregoepel/core/actions/runs/40079586341).
+The existing CI publication job was skipped. Core has no separate E2E workflow.
+
+The analysis and readiness artifacts were independently checked against the exact
+source revision, CI job, run attempts, artifact hashes and live Sonar task. Analysis
+`0be948bf-dfcd-48e7-bf79-316a78019339` passed with eight tests, 100% overall coverage,
+100% new-code coverage across four new lines to cover, and no findings or hotspots.
+The accepted baseline `e3555256-765a-4247-9489-9a22f02ff42b`, six gate conditions,
+27 frozen profiles, disabled small-change exemption and absent coverage exclusions
+were verified unchanged. The receipt remained `analysisReady: true` and
+`releaseEligible: false`; its expiry was 2026-10-24 09:52:51 UTC. This is historical
+validation evidence and cannot authorize a later publication.
 
 ## Remaining acceptance
 

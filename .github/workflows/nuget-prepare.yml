@@ -1,4 +1,4 @@
-# Standby registration only. Preparation workflow ID 0 remains deliberately unregistered.
+# Registered preparation workflow: 394955059 (NuGet preparation).
 # Standby only. Activation and NuGet policy cutover require separate approval.
 name: NuGet preparation
 
