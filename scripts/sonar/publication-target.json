@@ -2,5 +2,5 @@
   "repository": "andregoepel/core",
   "readinessWorkflowId": 392994102,
   "packages": ["AndreGoepel.Core"],
-  "verifierRevision": ""
+  "verifierRevision": "68683cdc6a268328ed6ce686d26c26ace479eab0"
 }

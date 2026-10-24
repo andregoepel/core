@@ -1,7 +1,9 @@
 # New-code acceptance evidence
 
 Tracking: [#30](https://github.com/andregoepel/core/issues/30).
-Status: local validation complete; exact merged-main central evidence pending.
+Status: local negative/recovery validation and exact merged-main central evidence
+verified on 2026-10-24. This completes the technical evidence for #30; publication
+enforcement remains tracked separately in #29.
 
 ## Reviewed source change
 
@@ -52,15 +54,38 @@ part of the proposed source change. Raw scanner, test and metric records remain
 in ignored local evidence, including the initial reproduction and both fixture
 results.
 
-## Post-merge check required before closure
+## Verified central main evidence
 
-After operator review and merge, validate CI and the unchanged Sonar workflow for
-the exact resulting main SHA. Record the actual run IDs and attempts, task and
-analysis IDs, baseline identity, discovered/passed tests, imported coverage,
-nonzero `new_lines_to_cover`, measured `new_coverage` and all applicable new-code
-conditions. Verify a successful fresh readiness receipt for that exact attempt.
-Do not substitute this local report or overall coverage for the central result.
+[Core PR #31](https://github.com/andregoepel/core/pull/31) merged the meaningful
+source change and its tests. The unchanged analysis workflow produced the
+following evidence on 2026-10-24:
 
-Keep the accepted specific baseline, frozen profiles, thresholds, small-change
-setting and exclusions unchanged. If another merge or rerun supersedes the
-evidence, repeat the exact-main check instead of accepting a stale receipt.
+| Evidence | Verified result |
+| --- | --- |
+| Main revision | `42874ff085ed01c2d06016195360dbdf3d910fe2` |
+| Main CI | [40078055900, attempt 1](https://github.com/andregoepel/core/actions/runs/40078055900/attempts/1), passed |
+| Sonar readiness | [40078086628, attempt 1](https://github.com/andregoepel/core/actions/runs/40078086628/attempts/1), passed |
+| Processing task | `b407a2f9-fb90-4dae-a0bd-ec81e9fd1dcf`, `SUCCESS` |
+| Analysis | `6c2fd919-6ba9-4f1d-9dfb-c17513c1a513` |
+| Unchanged specific baseline | `e3555256-765a-4247-9489-9a22f02ff42b` |
+| Inventory | Both projects analyzed; eight tests discovered and passed; `Result.cs` coverage imported |
+| New-code coverage | **Four new lines to cover; 100% measured coverage** |
+| Other new-code conditions | Zero new issues; 0% duplication; zero new hotspots |
+| Overall coverage | 100%; seven lines to cover, none uncovered |
+| Quality Gate | `OK`, no ignored conditions; zero findings/hotspots |
+| Receipt | `library-analysis-readiness`, `analysisReady: true`, `releaseEligible: false` |
+| Verification time | 2026-10-24 08:32:15 UTC; receipt was fresh until 09:30:08 UTC |
+
+The receipt binds the exact CI run, attempt and job; source, contract and summary
+hashes; analysis/task identity; and accepted policy. Read-only server checks
+confirmed the latest analysis revision/build string, all 27 frozen profiles and
+their rule timestamps, all six gate conditions, the disabled small-change
+exemption and absence of authored coverage exclusions. The hotspot-review
+percentage is inapplicable because its new-code denominator is explicitly zero;
+new-code coverage has a nonzero denominator and an actual passing percentage.
+
+The retained negative/recovery evidence above is isolated local evidence, not a
+central failure drill. Temporary fixtures were removed. Raw scanner and server
+snapshots remain in ignored local storage. This historical acceptance report
+does not extend receipt validity: any future publication needs fresh checks for
+its exact current main revision and run attempt.

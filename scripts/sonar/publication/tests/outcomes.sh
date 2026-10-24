@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Offline regression tests for the actual inactive template's outcome recorder.
+# Offline regression tests for the actual standby workflow's outcome recorder.
 set -euo pipefail
 
-template=${1:-"$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/nuget-publish.yml"}
+template=${1:-"$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../../.." && pwd)/.github/workflows/nuget-publish.yml"}
 workspace=$(mktemp -d)
 trap 'rm -rf -- "$workspace"' EXIT
 export RUNNER_TEMP="$workspace"
