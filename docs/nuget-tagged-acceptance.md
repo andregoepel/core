@@ -8,8 +8,9 @@ passed on attempt 1; independent inspection passed before expiry. The temporary
 tag, environments and credential copies were removed; the acceptance switch is
 false. No package was uploaded.
 
-The production preparation transition replaces the test-tag route with `v*`
-and a literal-false job guard. The sections below describe the historical test
+PR #36 replaced the test-tag route with `v*` and a literal-false job guard.
+The separate activation PR removes that guard and the production publisher's
+guards together, with a matching preparation hash. The sections below describe the historical test
 revision, not instructions to run against current production environments. Do not
 recreate the old tag, repurpose those environments or rerun the completed consumer.
 Any future hosted acceptance needs a separately reviewed test revision and approval.

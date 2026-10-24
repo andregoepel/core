@@ -1,5 +1,5 @@
 # Registered preparation workflow: 394955059 (NuGet preparation).
-# Publishing remains disabled; registration and cutover require separate review.
+# Protected publication after a successful, verified production preparation.
 name: NuGet verified publication
 
 on:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ false && github.repository == 'andregoepel/core' && github.event.workflow_run.workflow_id == 394955059 && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    if: ${{ github.repository == 'andregoepel/core' && github.event.workflow_run.workflow_id == 394955059 && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
     runs-on: ubuntu-24.04
     environment: nuget-publish
     timeout-minutes: 20
@@ -28,7 +28,7 @@ jobs:
         shell: bash
     steps:
       - name: Validate publication trigger
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         id: event
         env:
           GH_TOKEN: ${{ github.token }}
@@ -62,7 +62,7 @@ jobs:
           printf 'sha=%s\nrun=%s\nattempt=1\ntag=%s\nversion=%s\n' "$GITHUB_SHA" "$run" "$tag" "${tag#v}" >> "$GITHUB_OUTPUT"
 
       - name: Check out trusted candidate
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.event.outputs.sha }}
@@ -70,7 +70,7 @@ jobs:
           persist-credentials: false
 
       - name: Read reviewed publication verifier revision
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         id: verifier-source
         run: |
           set -euo pipefail
@@ -79,7 +79,7 @@ jobs:
           printf 'revision=%s\n' "$revision" >> "$GITHUB_OUTPUT"
 
       - name: Check out reviewed publication verifier
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: andregoepel/workflows
@@ -88,13 +88,13 @@ jobs:
           persist-credentials: false
 
       - name: Set up pinned SDK
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           global-json-file: global.json
 
       - name: Bootstrap trusted verifier
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         id: bootstrap
         env:
           CANDIDATE_SHA: ${{ steps.event.outputs.sha }}
@@ -120,7 +120,7 @@ jobs:
           printf 'dll=%s\n' "$dll" >> "$GITHUB_OUTPUT"
 
       - name: Download publication handoff
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         id: download
         env:
           GH_TOKEN: ${{ github.token }}
@@ -154,7 +154,7 @@ jobs:
             "$(jq -r '.readiness' <<< "$pins")" "$(jq -r '.tagObject' <<< "$pins")" "$(jq -r '.manifest' <<< "$pins")" >> "$GITHUB_OUTPUT"
 
       - name: Export publication context
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         env:
           CANDIDATE_SHA: ${{ steps.event.outputs.sha }}
           PREPARATION_RUN: ${{ steps.event.outputs.run }}
@@ -195,7 +195,7 @@ jobs:
           for name in "${names[@]}"; do printf '%s=%s\n' "$name" "${!name}" >> "$GITHUB_ENV"; done
 
       - name: Verify full handoff before login
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         id: verified-handoff
         shell: bash
         env:
@@ -244,7 +244,7 @@ jobs:
           printf 'intent-sha256=%s\n' "${digest%% *}" >> "$GITHUB_OUTPUT"
 
       - name: Preserve publication intent before login
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         id: publish-intent
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -256,7 +256,7 @@ jobs:
           include-hidden-files: false
 
       - name: Reverify after preserving intent
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         id: recorded-handoff
         shell: bash
         env:
@@ -288,14 +288,14 @@ jobs:
           cmp -- "$PUBLISH_ROOT/inventory.json" "$PUBLISH_ROOT/recorded-inventory.json"
 
       - name: Obtain temporary NuGet credentials
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         id: nuget-login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841
         with:
           user: ${{ secrets.NUGET_USER }}
 
       - name: Push each reverified package and symbol file
-        if: ${{ false && success() }}
+        if: ${{ success() }}
         id: publish
         shell: bash
         env:
@@ -360,7 +360,7 @@ jobs:
           done < "$PUBLISH_ROOT/files"
 
       - name: Record publication outcomes
-        if: ${{ false && always() && steps.publish-intent.outcome == 'success' }}
+        if: ${{ always() && steps.publish-intent.outcome == 'success' }}
         id: publish-outcomes
         shell: bash
         env:
@@ -424,7 +424,7 @@ jobs:
           mv -- "$PUBLISH_ROOT/outcomes.pending.json" "$PUBLISH_ROOT/outcomes.json"
 
       - name: Preserve publication outcomes
-        if: ${{ false && always() && steps.publish-outcomes.outcome == 'success' }}
+        if: ${{ always() && steps.publish-outcomes.outcome == 'success' }}
         id: stored-outcomes
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -436,7 +436,7 @@ jobs:
           include-hidden-files: false
 
       - name: Remove private publishing files
-        if: ${{ false && always() && steps.verified-handoff.outputs.root != '' && (steps.publish-intent.outcome != 'success' || steps.stored-outcomes.outcome == 'success') }}
+        if: ${{ always() && steps.verified-handoff.outputs.root != '' && (steps.publish-intent.outcome != 'success' || steps.stored-outcomes.outcome == 'success') }}
         shell: bash
         env:
           PUBLISH_ROOT: ${{ steps.verified-handoff.outputs.root }}
@@ -449,7 +449,7 @@ jobs:
           rm -rf -- "$PUBLISH_ROOT"
 
       - name: Remove verifier and downloaded handoff
-        if: ${{ false && always() && (steps.publish-intent.outcome != 'success' || steps.stored-outcomes.outcome == 'success') }}
+        if: ${{ always() && (steps.publish-intent.outcome != 'success' || steps.stored-outcomes.outcome == 'success') }}
         env:
           BOOTSTRAP_ROOT: ${{ steps.bootstrap.outputs.root }}
           HANDOFF_ROOT: ${{ steps.download.outputs.root }}

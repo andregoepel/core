@@ -1,5 +1,5 @@
 # Registered preparation workflow: 394955059 (NuGet preparation).
-# Production tags only; preparation stays disabled until separate activation approval.
+# Production tags only; protected approval and exact-main readiness are required.
 name: NuGet preparation
 
 on:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   prepare:
-    if: ${{ false && github.repository == 'andregoepel/core' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ github.repository == 'andregoepel/core' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     environment: sonar-nuget-prepare
     timeout-minutes: 75
