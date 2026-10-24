@@ -1,5 +1,5 @@
-# Review template only; outside .github/workflows. Preparation workflow ID 0 is deliberately unregistered.
-# Inactive caller template. Render with Build-NuGetPublishWorkflow.ps1 for review.
+# Standby registration only. Preparation workflow ID 0 remains deliberately unregistered.
+# Publishing remains disabled; registration and cutover require separate review.
 name: NuGet verified publication
 
 on:

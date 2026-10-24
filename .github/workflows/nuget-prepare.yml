@@ -1,4 +1,4 @@
-# Review template only; outside .github/workflows. Preparation workflow ID 0 is deliberately unregistered.
+# Standby registration only. Preparation workflow ID 0 remains deliberately unregistered.
 # Standby only. Activation and NuGet policy cutover require separate approval.
 name: NuGet preparation
 

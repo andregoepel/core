@@ -40,21 +40,26 @@ own environment with a reviewed `v*` tag policy; it has no OIDC permission.
 
 - `scripts/sonar/publication-target.json` binds repository, readiness workflow,
   exact package inventory and the independently pinned publication verifier.
-- `scripts/sonar/nuget-policy.json` pins preparation workflow identity, normalized
+- `scripts/sonar/nuget-policy.json` pins preparation workflow identity, exact
   content hash, required successful steps and a 120-minute maximum age.
-- `scripts/sonar/publication/nuget-prepare.yml` and `nuget-publish.yml` are review
-  templates **outside `.github/workflows`**, with literal-false job guards.
+- `.github/workflows/nuget-prepare.yml` and `nuget-publish.yml` are new standby
+  workflows with **literal-false job guards**. They cannot prepare or publish a
+  release. The existing CI, Sonar and Dependabot Actions are unchanged.
 - `scripts/sonar/publication/release-tags.ruleset.json` is an unapplied proposal.
 - The companion [workflows PR #31](https://github.com/andregoepel/workflows/pull/31)
   adapts the accepted app-foundation verifier
   to consumer-supplied identities. Core does not copy its C# implementation or
   add tool dependencies to the published Core library.
 
-The verifier revision is deliberately empty and the preparation workflow ID is
-zero until the companion revision has been reviewed and the standby workflow
-registered. Both are rejected by the verifier. Registering a workflow, recording
-its actual ID/hash and replacing the empty pin require review; never guess IDs or
-reuse app-foundation's values. The publication verifier pin is separate from
+The publication verifier is pinned to the reviewed merged workflows commit
+`68683cdc6a268328ed6ce686d26c26ace479eab0`. Its main validation and all 1,086 tests
+on each of Windows and Linux passed. The preparation content hash is recorded;
+the preparation workflow ID and both publication-trigger identity checks remain
+zero until GitHub registers the new workflow on main. This incomplete policy is
+rejected by the verifier. After merge, read back the actual workflow ID and
+review its replacement in the policy and both trigger checks together; never
+guess IDs or reuse app-foundation's values. Keep all false guards in place.
+The publication verifier pin is separate from
 `main-policy.json.toolRevision`, which continues to identify the accepted analysis
 runner. This avoids changing the existing Sonar Action for this preparation.
 
@@ -85,7 +90,7 @@ The C# tool cannot log in to NuGet or upload a package. Rehearsal uses an in-mem
 sink; actual publication uses only NuGet/login and dotnet's native push command.
 
 Run `bash scripts/sonar/publication/tests/outcomes.sh` on Linux with Bash, jq and
-the standard GNU utilities to test the template's actual outcome-recording step
+the standard GNU utilities to test the standby workflow's actual outcome-recording step
 offline. It uses synthetic intent/event files, without credentials or uploads,
 and checks successful single/multiple-package batches, partial outcomes and
 malformed event sequences. The expected event count comes from the verified file
@@ -93,16 +98,21 @@ inventory: one `started` and one terminal event per package or symbol file.
 
 ## Controlled cutover and rollback
 
-This sequence is proposed, not executed:
+Shared support and Core preparation were merged in their respective PR #31s.
+Main CI passed in both repositories, and #30's nonempty central new-code check
+is recorded in [the evidence report](sonar-new-code.md). The next registration
+step is prepared for review; the production cutover remains unexecuted:
 
-1. Review and merge the shared support and this Core preparation. Retain green
-   main CI and complete #30's nonempty central new-code check against the existing
-   accepted baseline. Do not change thresholds, exclusions or small-change policy.
+1. Review and merge the disabled standby workflows and reviewed verifier pin.
+   Read back GitHub's assigned preparation workflow ID, then submit its policy
+   and publication-trigger registration together for review, with false guards
+   retained. GitHub's assignment cannot be predicted before registration. Do not
+   change thresholds, exclusions or small-change policy.
 2. Recheck the recorded NuGet owner/policy/API-key audit. Review the exact final
    package-to-policy mapping and retire every identified alternative upload route.
-3. Submit one activation preparation PR that removes only the legacy
-   `pack-and-publish` job, installs the new workflows with false guards, records
-   the merged verifier pin and registers the real preparation ID/hash. Review the
+3. After explicit authorization to change the existing CI, submit the cutover PR
+   removing only the legacy `pack-and-publish` job. Keep both new workflows
+   disabled and retain the reviewed preparation registration. Review the
    resulting CI fingerprint update; preserve all other CI behavior. Merge only
    with operator approval. Do not create `v*` test tags while the old route exists.
 4. Configure the reviewed environments and immutable tag rules, prove tag update
@@ -112,7 +122,7 @@ This sequence is proposed, not executed:
    no publication credentials and no upload. Test failed/pending/missing gate,
    expired/wrong-revision/superseded evidence, altered artifact and successful
    eligible handoff. Record exact run/attempt and verify cleanup. The production
-   templates require reviewed test-event adaptations for this drill; their
+   standby workflows require reviewed test-event adaptations for this drill; their
    current `v*` triggers must not be used as test triggers.
 6. Review the combined evidence and authorize the final activation separately.
    Enable preparation and publication only after all bypasses are removed. First
@@ -127,8 +137,8 @@ new reviewed version where necessary. External evidence storage remains deferred
 ## Remaining acceptance
 
 #29 remains open until hosted integration, reviewed cutover and bypass removal
-are evidenced, with a fresh private audit at cutover. Inactive templates do not enforce the current
-legacy publisher. #30 remains open until the reviewed source change is merged and
-the exact central main analysis shows nonzero new lines to cover, measured passing
-new-code coverage, full test/coverage inventory and successful readiness. Neither
-issue is closed by merging this preparation alone.
+are evidenced, with a fresh private audit at cutover. Disabled standby workflows
+do not enforce the current legacy publisher. #30's technical criteria are fully
+evidenced by the merged source change, isolated negative/recovery check and exact
+central main readiness report. Completing #30 does not authorize publication or
+close #29.
