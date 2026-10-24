@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Offline regression tests for the actual standby workflow's outcome recorder.
+# Offline regression tests for the actual production or acceptance outcome recorder.
 set -euo pipefail
 
 template=${1:-"$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../../.." && pwd)/.github/workflows/nuget-publish.yml"}
+kind=${2:-publication-outcomes}
+case "$kind" in publication-outcomes|acceptance-outcomes) ;; *) exit 1 ;; esac
 workspace=$(mktemp -d)
 trap 'rm -rf -- "$workspace"' EXIT
 export RUNNER_TEMP="$workspace"
@@ -79,8 +81,9 @@ run_case() {
       exit 1
     fi
     jq -e --slurpfile intent "$root/intent.json" --argjson expected "$observations" \
-      --arg hash "$INTENT_SHA256" --arg login "$login" --arg push "$push" '
-      .schemaVersion == 1 and .kind == "publication-outcomes" and
+      --arg kind "$kind" --arg hash "$INTENT_SHA256" --arg login "$login" --arg push "$push" '
+      .schemaVersion == 1 and .kind == $kind and
+      (if $kind == "acceptance-outcomes" then .acceptanceOnly == true else (has("acceptanceOnly") | not) end) and
       .intentSha256 == $hash and .loginOutcome == $login and .pushOutcome == $push and
       .authorizesRetry == false and .remoteAcceptanceVerified == false and
       (.packages | map(.cliObservation)) == $expected and

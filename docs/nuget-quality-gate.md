@@ -2,11 +2,12 @@
 
 Tracks [#29](https://github.com/andregoepel/core/issues/29) and the source-change
 evidence in [#30](https://github.com/andregoepel/core/issues/30). This change prepares
-the publication path. It does not enable it or remove the existing tag publisher.
+the tagged no-upload test and removes the legacy tag publisher from CI. Production
+publication stays disabled. The NuGet account policy is not changed by this PR.
 
 ## Inventory and proposed mapping
 
-Read-only inventory on 2026-10-23:
+Historical read-only inventory on 2026-10-23 (before the CI publisher removal):
 
 | Item | Observed state | Proposed state |
 | --- | --- | --- |
@@ -42,9 +43,13 @@ own environment with a reviewed `v*` tag policy; it has no OIDC permission.
   exact package inventory and the independently pinned publication verifier.
 - `scripts/sonar/nuget-policy.json` pins preparation workflow identity, exact
   content hash, required successful steps and a 120-minute maximum age.
-- `.github/workflows/nuget-prepare.yml` and `nuget-publish.yml` are registered standby
-  workflows with **literal-false job guards**. They cannot prepare or publish a
-  release. The existing CI, Sonar and Dependabot Actions are unchanged.
+- `.github/workflows/nuget-prepare.yml` now accepts only isolated acceptance tags.
+  It and the new `nuget-acceptance.yml` require the off-by-default repository
+  switch `SONAR_NUGET_ACCEPTANCE_ENABLED`. Neither can publish packages.
+- `nuget-publish.yml` remains unchanged, with **literal-false job and step guards**.
+  CI loses only `pack-and-publish`; its build/test job and triggers are preserved.
+  `main-policy.json` records the new exact CI file hash. Sonar, the earlier manual
+  rehearsal and all other existing Actions remain unchanged.
 - `scripts/sonar/publication/release-tags.ruleset.json` is an unapplied proposal.
 - The companion [workflows PR #31](https://github.com/andregoepel/workflows/pull/31)
   adapts the accepted app-foundation verifier
@@ -64,9 +69,9 @@ merged, GitHub assigned these workflow identities, read back on 2026-10-24:
 The preparation ID is bound in `nuget-policy.json` and both publication-trigger
 checks. The policy also pins the exact preparation file bytes, including its
 updated registration comment. Any subsequent preparation edit requires a reviewed
-hash update. GitHub's workflow registration state does not enable its jobs: both
-job guards and the publication step guards remain literal false. No release tag
-or workflow dispatch is needed to register these identities.
+hash update. Registration does not enable production publication. The tagged
+acceptance switch is separate from the production workflow's literal-false
+guards. No tag or workflow dispatch is needed to register the new consumer.
 
 The publication verifier pin is separate from
 `main-policy.json.toolRevision`, which continues to identify the accepted analysis
@@ -113,29 +118,26 @@ is recorded in [the evidence report](sonar-new-code.md). Core PR #32 merged the
 disabled standby workflows, and Core PR #33 merged their assigned-ID registration.
 The production cutover remains unexecuted:
 
-1. Keep the registered preparation ID, policy hash and both publication trigger
-   checks consistent, retaining all false guards. Do not change thresholds,
-   exclusions or small-change policy. Run the separate no-upload rehearsal below
-   before changing production controls.
-2. Recheck the recorded NuGet owner/policy/API-key audit. Review the exact final
-   package-to-policy mapping and retire every identified alternative upload route.
-3. After explicit authorization to change the existing CI, submit the cutover PR
-   removing only the legacy `pack-and-publish` job. Keep both new workflows
-   disabled and retain the reviewed preparation registration. Review the
-   resulting CI fingerprint update; preserve all other CI behavior. Merge only
-   with operator approval. Do not create `v*` test tags while the old route exists.
-4. Configure the reviewed environments and immutable tag rules, prove tag update
-   and deletion rejection using separately authorized non-release tags, then
-   migrate the NuGet policy. Retain the resulting read-back evidence privately.
-5. Run an explicitly approved hosted rehearsal with isolated non-release tags,
-   no publication credentials and no upload. Test failed/pending/missing gate,
-   expired/wrong-revision/superseded evidence, altered artifact and successful
-   eligible handoff. Record exact run/attempt and verify cleanup. The production
-   standby workflows require reviewed test-event adaptations for this drill; their
-   current `v*` triggers must not be used as test triggers.
-6. Review the combined evidence and authorize the final activation separately.
-   Enable preparation and publication only after all bypasses are removed. First
-   real release is a separate explicit operation with fresh evidence and approval.
+1. Review and merge the bundled CI publisher removal, acceptance workflow pair,
+   matching CI/preparation hashes and [tagged test runbook](nuget-tagged-acceptance.md).
+   Verify main CI and Sonar against the existing baseline after merge. The
+   no-upload switch remains off; the production publisher remains literal false.
+2. After explicit test authorization, configure the protected acceptance
+   environments, enable only the acceptance switch and execute the runbook's
+   complete original-tag handoff, live tamper/intent negatives and independent
+   completed-run inspection. Preserve exact run/attempt and artifact digests.
+3. Recheck the NuGet owner/policy/API-key audit, then obtain approval for the
+   scoped policy migration, protected production environments and immutable
+   release-tag rules. Prove tag update/deletion rejection with separately
+   authorized non-release tags before rollout. Retain read-back evidence privately.
+4. Retire the obsolete `ci.yml` NuGet policy and any alternative upload routes.
+   Removing the job from current main does not revoke that policy, stop old
+   workflow reruns or make historical `v*` tags safe. Keep the issue open until
+   bypass removal is demonstrated; never restore the legacy publisher as rollback.
+5. Review the combined evidence and authorize final activation separately. A
+   production preparation trigger/guard change requires another reviewed byte
+   hash update. Enable the real publisher only after all controls are verified.
+   The first real release requires fresh evidence and explicit approval.
 
 On failure, keep publication disabled, retain evidence and revalidate main. After
 activation, disable the new publication path and revoke its policy if needed;
@@ -176,9 +178,9 @@ for `main` after approval through the existing `sonar-main` environment, using i
 existing verification credentials. No new environment, token or NuGet policy is
 required. Its GitHub token has only contents/actions read permissions. There is
 no OIDC permission, NuGet login, upload command, tag creation or deployment step.
-The existing CI, Sonar and disabled preparation/publication workflows are unchanged.
+That rehearsal did not change CI, Sonar or the preparation/publication workflows.
 
-After this workflow is reviewed and merged:
+For an explicitly authorized repeat of this already completed rehearsal:
 
 1. Verify CI and Sonar readiness succeeded for current main. Dispatch while the
    readiness receipt is fresh; evidence lifetime is 60 minutes and the mandatory
@@ -212,20 +214,27 @@ requires `dryRun: true` and `releaseEligible: false`.
 The script passed locally in an isolated Linux container against merged main
 `afaa5c9` and readiness run `40087584458`: all four rejections occurred before
 preparation, then the real `.nupkg` and `.snupkg` passed verification without an
-upload. This is local Linux evidence; the new hosted workflow still requires a
-post-merge dispatch and evidence review.
+upload. After PR #34 merged, hosted run
+[40089669289, attempt 1](https://github.com/andregoepel/core/actions/runs/40089669289)
+passed on `8ebba9694f80f0d31ece925df592bae1302b8b20`: 1,086 shared tests, 11 recorder
+scenarios, four live rejections and eight versioned Core tests. The retained
+artifact `12559090125` was independently downloaded and its digest verified.
+[CI 40089364434](https://github.com/andregoepel/core/actions/runs/40089364434) and
+[Sonar 40089400926](https://github.com/andregoepel/core/actions/runs/40089400926)
+also passed at attempt 1. Its receipt expired on 2026-10-24 at 12:21:19 UTC; these
+are historical results, not current release authorization.
 
 This rehearsal does not produce an authenticated tagged preparation origin or a
 stored publication intent. Protected production approvals, tag update/deletion
-rejection, hosted preparation-to-publication handoff and removal of the legacy
-publisher remain unverified. Keep #29 open and its hosted integration criterion
+rejection and the hosted tagged handoff remain unverified. The bundled PR removes
+the legacy CI job, while its account policy remains for a separate migration. Keep #29 open and its hosted integration criterion
 unchecked until the complete handoff and negative matrix have been demonstrated.
 
 ## Remaining acceptance
 
 #29 remains open until hosted integration, reviewed cutover and bypass removal
-are evidenced, with a fresh private audit at cutover. Disabled standby workflows
-do not enforce the current legacy publisher. #30's technical criteria are fully
+are evidenced, with a fresh private audit at cutover. Removing the legacy CI job
+does not revoke historical credential routes or enable the future publisher. #30's technical criteria are fully
 evidenced by the merged source change, isolated negative/recovery check and exact
 central main readiness report. Completing #30 does not authorize publication or
 close #29.
