@@ -17,7 +17,9 @@ jobs:
       github.repository == 'andregoepel/core' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_repository.full_name == github.repository
-    uses: andregoepel/workflows/.github/workflows/sonar-library.yml@f6c806d1060e390a24c1451e7486578c9bdbab23
-    secrets: inherit
+    uses: andregoepel/workflows/.github/workflows/sonar-library.yml@752a04b788fd1cdb41e810ab62c184fe141d240a
+    secrets:
+      SONAR_SCAN_TOKEN: ${{ secrets.SONAR_SCAN_TOKEN }}
+      SONAR_VERIFY_TOKEN: ${{ secrets.SONAR_VERIFY_TOKEN }}
     with:
-      tool-revision: f6c806d1060e390a24c1451e7486578c9bdbab23
+      tool-revision: 752a04b788fd1cdb41e810ab62c184fe141d240a
