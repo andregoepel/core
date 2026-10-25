@@ -90,17 +90,24 @@ The private `core` project has separate scan-only and browse-only identities.
 The scanner uses a project-analysis token; the verifier has no scan or admin
 permission. Both were denied administration and access to app-foundation.
 Their credentials are stored only in protected operator storage and Core's
-`sonar-main` environment. That environment permits only the `main` branch,
+`sonar-main`, `sonar-nuget-prepare` and `nuget-publish` environments.
+The `sonar-main` environment permits only the `main` branch,
 requires André's approval, allows self-approval and disables administrator bypass.
 Tokens expire after 90 days; renew only Core's tokens and environment secrets
 before expiry, then repeat the permitted/denied access checks.
 
-The onboarding, profile snapshot and environment-secret forwarding changes are
-merged. The caller uses `secrets: inherit` so the protected environment supplies
-the two Sonar credentials to the immutable shared workflow. This also makes
-caller-accessible repository secrets available to that workflow; review this
-scope when adding secrets. The pinned analysis job references only the Sonar
-credentials and has no publish/OIDC permissions.
+The caller explicitly forwards only `SONAR_SCAN_TOKEN` and `SONAR_VERIFY_TOKEN`.
+Its shared workflow pin, `tool-revision` input and policy all select
+`752a04b788fd1cdb41e810ab62c184fe141d240a` (reviewed workflows PR #32).
+The called job still uses the protected `sonar-main` environment. Unrelated
+caller secrets are no longer forwarded through `secrets: inherit`; keep the
+environment itself dedicated to these two Sonar credentials. The analysis job
+retains read-only GitHub permissions and no publishing/OIDC permissions.
+
+See [the maintenance and handoff checklist](sonar-maintenance.md) for token
+rotation, the post-merge hosted checks and rollback. PR CI and local analysis
+cannot prove the protected environment's secret resolution; confirm it on main
+after this caller/policy change is reviewed and merged.
 
 André explicitly accepted the first central analysis as the baseline. Core main's
 server-side new-code definition is `SPECIFIC_ANALYSIS`, with the same analysis ID
